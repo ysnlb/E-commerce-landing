@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { ImagePlus, Sparkles, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImagePlus, Sparkles, X } from 'lucide-react'
 
-// Controlled multi-image picker with local previews and native drag reorder.
+// Controlled multi-image picker with local previews.
+// Reordering: arrow buttons (touch-friendly) + native drag (desktop only).
 // `images` is [{ key, file, preview }] (or { key, url, preview } for already
 // uploaded images in edit mode) — the order defines image_urls order.
 // `onEnhance(image)` is optional; when provided, each thumbnail gets an
@@ -29,7 +30,16 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
     onChange(images.filter((i) => i.key !== key))
   }
 
-  // Live reorder while dragging over a sibling thumbnail.
+  // Arrow reordering: delta -1 moves toward the first (main) slot.
+  function move(index, delta) {
+    const to = index + delta
+    if (to < 0 || to >= images.length) return
+    const next = [...images]
+    ;[next[index], next[to]] = [next[to], next[index]]
+    onChange(next)
+  }
+
+  // Live reorder while dragging over a sibling thumbnail (mouse only).
   function reorder(overKey) {
     if (dragKey === null || dragKey === overKey) return
     const from = images.findIndex((i) => i.key === dragKey)
@@ -53,7 +63,7 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
         }}
       />
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {images.map((img, i) => (
           <div
             key={img.key}
@@ -64,13 +74,13 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
               e.preventDefault()
               reorder(img.key)
             }}
-            className={`group relative aspect-square cursor-grab overflow-hidden rounded-xl border border-cream-300 bg-white ${
+            className={`group relative aspect-square overflow-hidden rounded-xl border border-cream-300 bg-white ${
               dragKey === img.key ? 'opacity-60' : ''
             }`}
           >
             <img src={img.preview} alt="" className="h-full w-full object-cover" />
             {i === 0 && (
-              <span className="absolute bottom-1 right-1 rounded bg-charcoal-900/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
+              <span className="absolute bottom-1.5 right-1.5 rounded bg-charcoal-900/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
                 رئيسية
               </span>
             )}
@@ -78,7 +88,7 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
               type="button"
               onClick={() => removeImage(img.key)}
               aria-label="حذف الصورة"
-              className="absolute left-1 top-1 rounded-full bg-white/90 p-1 text-charcoal-700 opacity-0 transition group-hover:opacity-100"
+              className="absolute left-1.5 top-1.5 rounded-full bg-white/95 p-1.5 text-charcoal-700 shadow-sm"
             >
               <X size={14} />
             </button>
@@ -88,11 +98,31 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
                 onClick={() => onEnhance(img)}
                 title="تحسين الصورة (AI)"
                 aria-label="تحسين الصورة"
-                className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-leather-700 opacity-0 transition group-hover:opacity-100"
+                className="absolute right-1.5 top-1.5 rounded-full bg-white/95 p-1.5 text-leather-700 shadow-sm"
               >
                 <Sparkles size={14} />
               </button>
             )}
+            <div className="absolute bottom-1.5 left-1.5 flex gap-1">
+              <button
+                type="button"
+                onClick={() => move(i, -1)}
+                disabled={i === 0}
+                aria-label="تقديم الصورة"
+                className="rounded-full bg-white/95 p-1.5 text-charcoal-700 shadow-sm disabled:opacity-35"
+              >
+                <ChevronRight size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => move(i, 1)}
+                disabled={i === images.length - 1}
+                aria-label="تأخير الصورة"
+                className="rounded-full bg-white/95 p-1.5 text-charcoal-700 shadow-sm disabled:opacity-35"
+              >
+                <ChevronLeft size={14} />
+              </button>
+            </div>
           </div>
         ))}
 
@@ -109,7 +139,7 @@ export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) 
       </div>
 
       <p className="mt-2 text-xs text-charcoal-500">
-        من 1 إلى {max} صور — الصورة الأولى هي الرئيسية، اسحب الصور لإعادة الترتيب.
+        من 1 إلى {max} صور — الأولى هي الرئيسية. رتّب بالأسهم (أو بالسحب على الحاسوب).
       </p>
     </div>
   )
