@@ -8,7 +8,8 @@ Personal tool that generates tall, single-image e-commerce ad creatives (Arabic/
 
 - **Phase 1 ✓** — scaffolding, RTL base + Cairo font, Supabase client, single-account auth, routing (`/login`, `/`, `/new`), temporary connection debug panel on the dashboard.
 - **Phase 2 ✓** — `/new` product form: base fields + template selector, 3 feature rows with a fixed lucide icon set, multi-image upload (1–4 images, previews, drag reorder) into `product-images/{product_id}/`, inline validation, insert + redirect.
-- **Next** — template renderers (A/B/C) and image export.
+- **Phase 3 ✓** — `/preview/:productId`: TemplateCanvas (1080px fixed-width RTL ad canvas) switching between Template A (container/home), B (wearable), C (gadget), populated from the Supabase row, scaled responsively via ScaledPreview. Headline supports an optional `~word~` strikethrough. Graceful fallbacks for missing images/descriptions.
+- **Next** — image export via `html-to-image`.
 
 ## Setup
 
