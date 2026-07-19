@@ -11,7 +11,7 @@ Personal tool that generates tall, single-image e-commerce ad creatives (Arabic/
 - **Phase 3 ✓** — `/preview/:productId`: TemplateCanvas (1080px fixed-width RTL ad canvas) switching between Template A (container/home), B (wearable), C (gadget), populated from the Supabase row, scaled responsively via ScaledPreview. Headline supports an optional `~word~` strikethrough. Graceful fallbacks for missing images/descriptions.
 - **Phase 4 ✓** — export on the preview page: `html-to-image` capture of the full-res canvas at 2× pixel ratio, WebP/JPG toggle, slugged download filename, loading + error states.
 - **Phase 5 ✓** — dashboard: product cards (thumbnail, name, price, date, template badge) linking to the preview, edit via the reused form at `/edit/:productId`, two-step inline delete with storage cleanup, empty state. Debug panel removed.
-- **Next** — AI placeholder wiring (template auto-pick, copy generation).
+- **Phase 6 ✓** — AI placeholder hooks in `src/lib/aiHooks.js` (`generateCopy` → Darija ad copy, `enhanceImage`, `selectTemplate`), wired to form buttons (suggest copy, per-thumbnail enhance, auto-pick template) with toast feedback. Each hook currently throws; the form already applies their documented return shapes, so wiring a real API later is a **one-file change** in `aiHooks.js`.
 
 ## Setup
 

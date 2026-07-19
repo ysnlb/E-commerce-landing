@@ -1,9 +1,12 @@
 import { useRef, useState } from 'react'
-import { ImagePlus, X } from 'lucide-react'
+import { ImagePlus, Sparkles, X } from 'lucide-react'
 
 // Controlled multi-image picker with local previews and native drag reorder.
-// `images` is [{ key, file, preview }] — the order defines image_urls order.
-export default function ImageUploader({ images, onChange, max = 4 }) {
+// `images` is [{ key, file, preview }] (or { key, url, preview } for already
+// uploaded images in edit mode) — the order defines image_urls order.
+// `onEnhance(image)` is optional; when provided, each thumbnail gets an
+// AI-enhance button.
+export default function ImageUploader({ images, onChange, onEnhance, max = 4 }) {
   const inputRef = useRef(null)
   const [dragKey, setDragKey] = useState(null)
 
@@ -79,6 +82,17 @@ export default function ImageUploader({ images, onChange, max = 4 }) {
             >
               <X size={14} />
             </button>
+            {onEnhance && (
+              <button
+                type="button"
+                onClick={() => onEnhance(img)}
+                title="تحسين الصورة (AI)"
+                aria-label="تحسين الصورة"
+                className="absolute right-1 top-1 rounded-full bg-white/90 p-1 text-leather-700 opacity-0 transition group-hover:opacity-100"
+              >
+                <Sparkles size={14} />
+              </button>
+            )}
           </div>
         ))}
 

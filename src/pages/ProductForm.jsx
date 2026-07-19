@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Sparkles } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { removeImagesByUrls } from '../lib/storage'
 import { FEATURE_ICONS, FEATURE_ICON_LABELS } from '../lib/icons'
+import { enhanceImage, generateCopy, selectTemplate } from '../lib/aiHooks'
 import ImageUploader from '../components/ImageUploader'
 
 const TEMPLATES = [
@@ -20,6 +22,9 @@ const inputClass = (hasError) =>
   `w-full rounded-lg border bg-cream-50 px-3 py-2 text-charcoal-900 outline-none transition focus:border-leather-500 ${
     hasError ? 'border-red-400' : 'border-cream-300'
   }`
+
+const aiButtonClass =
+  'flex shrink-0 items-center gap-1.5 rounded-lg border border-leather-400 px-3 py-1.5 text-xs font-bold text-leather-700 transition hover:bg-leather-600 hover:text-white disabled:opacity-50'
 
 // Create + edit form: /new inserts, /edit/:productId prefills and updates.
 export default function ProductForm() {
@@ -43,6 +48,15 @@ export default function ProductForm() {
   const [errors, setErrors] = useState({})
   const [submitError, setSubmitError] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [toast, setToast] = useState(null)
+  const [aiBusy, setAiBusy] = useState(null) // 'copy' | 'template' | an image key
+
+  // Auto-dismiss the toast.
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   // Prefill when editing.
   useEffect(() => {
@@ -112,6 +126,74 @@ export default function ProductForm() {
     setFeatures((rows) =>
       rows.map((row, i) => (i === index ? { ...row, [key]: value } : row)),
     )
+  }
+
+  // ---- AI placeholder wiring ----
+  // The hooks throw until implemented in src/lib/aiHooks.js; their results
+  // are already applied below, so activating them later is a one-file change.
+
+  async function handleSuggestCopy() {
+    setAiBusy('copy')
+    try {
+      const copy = await generateCopy({ ...form, features })
+      setForm((f) => ({
+        ...f,
+        headline: copy.headline ?? f.headline,
+        subheadline: copy.subheadline ?? f.subheadline,
+        description: copy.description ?? f.description,
+        closing_line: copy.closing_line ?? f.closing_line,
+      }))
+      if (Array.isArray(copy.features) && copy.features.length) {
+        const rows = copy.features.slice(0, 3).map((feat, i) => ({
+          icon: feat.icon || DEFAULT_ICONS[i],
+          label: feat.label || '',
+          description: feat.description || '',
+        }))
+        while (rows.length < 3) {
+          rows.push({ icon: DEFAULT_ICONS[rows.length], label: '', description: '' })
+        }
+        setFeatures(rows)
+      }
+    } catch (err) {
+      setToast({ text: 'اقتراح النصوص بالذكاء الاصطناعي غير مفعّل بعد.', detail: err.message })
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  async function handleEnhanceImage(image) {
+    setAiBusy(image.key)
+    try {
+      const enhanced = await enhanceImage(image.file ?? image.url)
+      if (image.file) URL.revokeObjectURL(image.preview)
+      setImages((list) =>
+        list.map((img) =>
+          img.key === image.key
+            ? { key: img.key, file: enhanced, preview: URL.createObjectURL(enhanced) }
+            : img,
+        ),
+      )
+    } catch (err) {
+      setToast({ text: 'تحسين الصور بالذكاء الاصطناعي غير مفعّل بعد.', detail: err.message })
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  async function handleAutoTemplate() {
+    setAiBusy('template')
+    try {
+      const templateId = await selectTemplate({
+        ...form,
+        features,
+        image_urls: images.map((img) => img.url).filter(Boolean),
+      })
+      setField('template_id', templateId)
+    } catch (err) {
+      setToast({ text: 'الاختيار التلقائي للقالب غير مفعّل بعد.', detail: err.message })
+    } finally {
+      setAiBusy(null)
+    }
   }
 
   function validate() {
@@ -248,22 +330,50 @@ export default function ProductForm() {
             />
           </Field>
         </div>
-        <Field label="القالب">
-          <select
-            value={form.template_id}
-            onChange={(e) => setField('template_id', e.target.value)}
-            className={inputClass(false)}
-          >
-            {TEMPLATES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
-        </Field>
+        <div>
+          <label htmlFor="template_id" className="mb-1 block text-sm font-semibold">
+            القالب
+          </label>
+          <div className="flex gap-2">
+            <select
+              id="template_id"
+              value={form.template_id}
+              onChange={(e) => setField('template_id', e.target.value)}
+              className={inputClass(false)}
+            >
+              {TEMPLATES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleAutoTemplate}
+              disabled={aiBusy === 'template'}
+              className={aiButtonClass}
+            >
+              <Sparkles size={14} />
+              اختيار تلقائي (AI)
+            </button>
+          </div>
+        </div>
       </Section>
 
-      <Section title="نصوص الإعلان">
+      <Section
+        title="نصوص الإعلان"
+        action={
+          <button
+            type="button"
+            onClick={handleSuggestCopy}
+            disabled={aiBusy === 'copy'}
+            className={aiButtonClass}
+          >
+            <Sparkles size={14} />
+            اقتراح النصوص (AI)
+          </button>
+        }
+      >
         <Field label="العنوان الرئيسي *" error={errors.headline}>
           <input
             value={form.headline}
@@ -305,7 +415,7 @@ export default function ProductForm() {
       </Section>
 
       <Section title="الصور *">
-        <ImageUploader images={images} onChange={setImages} />
+        <ImageUploader images={images} onChange={setImages} onEnhance={handleEnhanceImage} />
         {errors.images && (
           <p className="text-sm font-semibold text-red-600">{errors.images}</p>
         )}
@@ -327,16 +437,35 @@ export default function ProductForm() {
       >
         {saving ? '...جاري الحفظ' : isEdit ? 'حفظ التعديلات' : 'حفظ المنتج'}
       </button>
+
+      <Toast toast={toast} />
     </form>
   )
 }
 
-function Section({ title, children }) {
+function Section({ title, action, children }) {
   return (
     <section className="space-y-4 rounded-2xl border border-cream-200 bg-white p-5">
-      <h2 className="font-extrabold text-charcoal-900">{title}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-extrabold text-charcoal-900">{title}</h2>
+        {action}
+      </div>
       {children}
     </section>
+  )
+}
+
+function Toast({ toast }) {
+  if (!toast) return null
+  return (
+    <div className="fixed bottom-6 left-1/2 z-50 w-max max-w-[90vw] -translate-x-1/2 rounded-xl bg-charcoal-900 px-5 py-3 text-center text-white shadow-lg">
+      <p className="text-sm font-bold">{toast.text}</p>
+      {toast.detail && (
+        <p className="mt-1 text-xs text-white/70" dir="ltr">
+          {toast.detail}
+        </p>
+      )}
+    </div>
   )
 }
 
