@@ -9,7 +9,9 @@ Personal tool that generates tall, single-image e-commerce ad creatives (Arabic/
 - **Phase 1 ✓** — scaffolding, RTL base + Cairo font, Supabase client, single-account auth, routing (`/login`, `/`, `/new`), temporary connection debug panel on the dashboard.
 - **Phase 2 ✓** — `/new` product form: base fields + template selector, 3 feature rows with a fixed lucide icon set, multi-image upload (1–4 images, previews, drag reorder) into `product-images/{product_id}/`, inline validation, insert + redirect.
 - **Phase 3 ✓** — `/preview/:productId`: TemplateCanvas (1080px fixed-width RTL ad canvas) switching between Template A (container/home), B (wearable), C (gadget), populated from the Supabase row, scaled responsively via ScaledPreview. Headline supports an optional `~word~` strikethrough. Graceful fallbacks for missing images/descriptions.
-- **Next** — image export via `html-to-image`.
+- **Phase 4 ✓** — export on the preview page: `html-to-image` capture of the full-res canvas at 2× pixel ratio, WebP/JPG toggle, slugged download filename, loading + error states.
+- **Phase 5 ✓** — dashboard: product cards (thumbnail, name, price, date, template badge) linking to the preview, edit via the reused form at `/edit/:productId`, two-step inline delete with storage cleanup, empty state. Debug panel removed.
+- **Next** — AI placeholder wiring (template auto-pick, copy generation).
 
 ## Setup
 
@@ -28,13 +30,11 @@ cp .env.example .env   # fill both values from Supabase → Project Settings →
 npm run dev
 ```
 
-### 3. Verify the connection
+### 3. First run
 
-1. Open the app → you land on `/login` → sign in with the user you created.
-2. The dashboard shows the debug panel:
-   - **القراءة** should report متصل ✓ with the product count (0 on a fresh table).
-   - Press **اختبار إضافة + حذف** — the insert-then-delete round trip must pass too.
-3. `src/components/DebugPanel.jsx` is temporary and gets removed in Phase 2.
+1. Open the app → `/login` → sign in with the user you created.
+2. Add a product from **منتج جديد** (name, headline and at least one image are required).
+3. It appears on the dashboard → open its card to preview the template → **تصدير** downloads the ad image (WebP or JPG, 2× resolution).
 
 ### 4. Deploy (Vercel)
 

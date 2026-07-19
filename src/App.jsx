@@ -3,7 +3,7 @@ import { useSession } from './hooks/useSession'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
-import NewProduct from './pages/NewProduct'
+import ProductForm from './pages/ProductForm'
 import Preview from './pages/Preview'
 
 export default function App() {
@@ -26,7 +26,8 @@ export default function App() {
         />
         <Route element={session ? <Layout /> : <Navigate to="/login" replace />}>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/new" element={<NewProduct />} />
+          <Route path="/new" element={<ProductForm />} />
+          <Route path="/edit/:productId" element={<ProductForm />} />
           <Route path="/preview/:productId" element={<Preview />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
