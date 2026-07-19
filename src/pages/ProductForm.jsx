@@ -4,6 +4,7 @@ import { Sparkles } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { removeImagesByUrls } from '../lib/storage'
 import { FEATURE_ICONS, FEATURE_ICON_LABELS } from '../lib/icons'
+import { DEFAULT_THEME_ID, THEMES } from '../lib/themes'
 import { enhanceImage, generateCopy, selectTemplate } from '../lib/aiHooks'
 import ImageUploader from '../components/ImageUploader'
 
@@ -38,6 +39,7 @@ export default function ProductForm() {
     name: '',
     price: '',
     template_id: 'A',
+    theme_id: DEFAULT_THEME_ID,
     headline: '',
     subheadline: '',
     description: '',
@@ -78,6 +80,7 @@ export default function ProductForm() {
         name: data.name ?? '',
         price: data.price == null ? '' : String(data.price),
         template_id: data.template_id ?? 'A',
+        theme_id: data.theme_id ?? DEFAULT_THEME_ID,
         headline: data.headline ?? '',
         subheadline: data.subheadline ?? '',
         description: data.description ?? '',
@@ -246,6 +249,7 @@ export default function ProductForm() {
         name: form.name.trim(),
         price: form.price === '' ? null : Number(form.price),
         template_id: form.template_id,
+        theme_id: form.theme_id,
         headline: form.headline.trim(),
         subheadline: form.subheadline.trim() || null,
         description: form.description.trim() || null,
@@ -356,6 +360,34 @@ export default function ProductForm() {
               <Sparkles size={14} />
               اختيار تلقائي (AI)
             </button>
+          </div>
+        </div>
+        <div>
+          <span className="mb-1 block text-sm font-semibold">الثيم (الألوان والخطوط)</span>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(THEMES).map(([id, t]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setField('theme_id', id)}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold transition ${
+                  form.theme_id === id
+                    ? 'border-leather-600 bg-leather-600/10 text-leather-700'
+                    : 'border-cream-300 bg-white text-charcoal-600 hover:border-leather-400'
+                }`}
+              >
+                <span className="flex items-center">
+                  {t.dots.map((c, i) => (
+                    <span
+                      key={i}
+                      className="-me-1.5 inline-block h-4 w-4 rounded-full border border-white shadow-sm"
+                      style={{ backgroundColor: c }}
+                    />
+                  ))}
+                </span>
+                <span className="ms-1.5">{t.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </Section>

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { toCanvas } from 'html-to-image'
 import { Download } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { THEMES } from '../lib/themes'
 import ScaledPreview from '../components/ScaledPreview'
 import TemplateCanvas from '../components/templates/TemplateCanvas'
 
@@ -47,6 +48,16 @@ export default function Preview() {
       cancelled = true
     }
   }, [productId])
+
+  // Switch the theme live and persist it so the export and the form match.
+  async function handleThemeChange(themeId) {
+    setState((s) => ({ ...s, product: { ...s.product, theme_id: themeId } }))
+    const { error } = await supabase
+      .from('products')
+      .update({ theme_id: themeId })
+      .eq('id', productId)
+    if (error) setExportError(error.message)
+  }
 
   async function handleExport() {
     if (!canvasRef.current || exporting) return
@@ -117,6 +128,17 @@ export default function Preview() {
           <span className="rounded-lg bg-leather-600 px-3 py-1 text-sm font-bold text-white">
             قالب {product.template_id}
           </span>
+          <select
+            value={product.theme_id ?? 'warm'}
+            onChange={(e) => handleThemeChange(e.target.value)}
+            className="rounded-lg border border-cream-300 bg-white px-2 py-1.5 text-xs font-bold text-charcoal-700 outline-none focus:border-leather-500"
+          >
+            {Object.entries(THEMES).map(([id, t]) => (
+              <option key={id} value={id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
           <div className="flex overflow-hidden rounded-lg border border-cream-300">
             {Object.keys(FORMATS).map((f) => (
               <button

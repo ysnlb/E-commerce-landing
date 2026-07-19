@@ -1,4 +1,4 @@
-import { ClosingSection, FeatureRows, Headline } from './shared'
+import { ClosingSection, FeatureRows, Headline, softText } from './shared'
 
 // Template B — wearable / clothing.
 // Image slots: [0] lifestyle hero, [1..2] floating variant shots beside the
@@ -14,10 +14,10 @@ export default function TemplateB({ product }) {
         <div className="relative z-10 px-16 pt-20 text-center">
           <Headline
             text={product.headline}
-            className="font-display text-[64px] font-extrabold leading-[1.3] text-espresso-900"
+            className="text-[64px] font-extrabold leading-[1.3]"
           />
           {product.subheadline && (
-            <p className="mx-auto mt-5 max-w-4xl text-[30px] font-semibold leading-relaxed text-espresso-800/75">
+            <p className={`mx-auto mt-5 max-w-4xl text-[30px] font-semibold leading-relaxed ${softText}`}>
               {product.subheadline}
             </p>
           )}
@@ -30,8 +30,14 @@ export default function TemplateB({ product }) {
               crossOrigin="anonymous"
               className="h-[860px] w-full object-cover"
             />
-            <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-[#fdfbf7] to-transparent" />
-            <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-[#fdfbf7] to-transparent" />
+            <div
+              className="absolute inset-x-0 top-0 h-44"
+              style={{ backgroundImage: 'linear-gradient(to bottom, var(--t-canvas), transparent)' }}
+            />
+            <div
+              className="absolute inset-x-0 bottom-0 h-44"
+              style={{ backgroundImage: 'linear-gradient(to top, var(--t-canvas), transparent)' }}
+            />
           </div>
         )}
       </header>
@@ -41,7 +47,7 @@ export default function TemplateB({ product }) {
         <section className="px-16 pb-10 pt-8">
           <div className="flex items-center gap-12">
             <div className="min-w-0 flex-1">
-              <h2 className="font-display text-[46px] font-extrabold leading-tight text-espresso-900">
+              <h2 className="text-[46px] font-extrabold leading-tight text-[var(--t-ink)] [font-family:var(--t-display)]">
                 المقاسات والتفاصيل
               </h2>
               <FeatureRows features={features} tile={76} icon={36} className="mt-10" />

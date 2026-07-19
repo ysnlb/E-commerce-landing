@@ -1,20 +1,24 @@
 import { Star } from 'lucide-react'
 import { FEATURE_ICONS } from '../../lib/icons'
 
-// Renders a headline where a word wrapped in tildes gets a red,
+// All colors/fonts come from the theme CSS variables injected by
+// TemplateCanvas (see src/lib/themes.js). Gradients, SVG fills and shadows
+// use inline styles for html-to-image export safety.
+
+// Renders a headline where a word wrapped in tildes gets a colored,
 // slightly-rotated strikethrough bar (the "before" effect):
 // "عيت من ~الروينة~ في خزانتك؟". Plain headlines render unchanged.
 export function Headline({ text, className = '' }) {
   const parts = String(text ?? '').split(/~([^~]+)~/g)
   return (
-    <h1 className={className}>
+    <h1 className={`[font-family:var(--t-display)] text-[var(--t-ink)] ${className}`}>
       {parts.map((part, i) =>
         i % 2 === 1 ? (
           <span key={i} className="relative inline-block whitespace-nowrap">
             {part}
             <span
               aria-hidden
-              className="absolute -left-[4%] -right-[4%] top-[54%] h-[0.085em] -rotate-3 rounded-full bg-red-600/90"
+              className="absolute -left-[4%] -right-[4%] top-[54%] h-[0.085em] -rotate-3 rounded-full bg-[var(--t-strike)]"
             />
           </span>
         ) : (
@@ -25,29 +29,32 @@ export function Headline({ text, className = '' }) {
   )
 }
 
-// Rounded-square tan icon tile; unknown keys fall back to a star.
+// Sub/secondary text color helper class string, kept in one place.
+export const softText = 'text-[var(--t-ink-soft)]'
+
+// Rounded-square icon tile; unknown keys fall back to a star.
 export function IconTile({ name, size = 88, icon = 42 }) {
   const Icon = FEATURE_ICONS[name] ?? Star
   return (
     <div
       style={{ width: size, height: size }}
-      className="flex shrink-0 items-center justify-center rounded-2xl bg-sand-400 text-white shadow-md"
+      className="flex shrink-0 items-center justify-center rounded-2xl bg-[var(--t-tile)] text-white shadow-md"
     >
       <Icon size={icon} strokeWidth={2.2} />
     </div>
   )
 }
 
-// Feature rows in the reference style: icon tiles first (right side in RTL)
-// joined by a vertical dashed connector, bold espresso labels beside them.
+// Feature rows: icon tiles first (right side in RTL) joined by a vertical
+// dashed connector, bold labels beside them.
 export function FeatureRows({ features, tile = 88, icon = 42, className = '' }) {
   return (
     <div className={`relative ${className}`}>
       {features.length > 1 && (
         <div
           aria-hidden
-          className="absolute bottom-12 top-12 border-s-2 border-dashed border-sand-400/70"
-          style={{ insetInlineStart: tile / 2 }}
+          className="absolute bottom-12 top-12 border-s-2 border-dashed"
+          style={{ insetInlineStart: tile / 2, borderColor: 'var(--t-tile-soft)' }}
         />
       )}
       <div className="space-y-12">
@@ -55,11 +62,11 @@ export function FeatureRows({ features, tile = 88, icon = 42, className = '' }) 
           <div key={i} className="relative flex items-center gap-7">
             <IconTile name={f.icon} size={tile} icon={icon} />
             <div>
-              <p className="text-[34px] font-extrabold leading-snug text-espresso-800">
+              <p className="text-[34px] font-extrabold leading-snug text-[var(--t-ink)]">
                 {f.label}
               </p>
               {f.description && (
-                <p className="mt-1 text-[27px] font-semibold leading-snug text-espresso-800/60">
+                <p className={`mt-1 text-[27px] font-semibold leading-snug ${softText}`}>
                   {f.description}
                 </p>
               )}
@@ -92,7 +99,7 @@ export function CodSeal({ className = '' }) {
   return (
     <div className={`relative h-[150px] w-[150px] drop-shadow-md ${className}`}>
       <svg viewBox="0 0 160 160" className="h-full w-full">
-        <path d={SEAL_PATH} fill="#48693c" />
+        <path d={SEAL_PATH} style={{ fill: 'var(--t-seal)' }} />
         <path
           d={SEAL_PATH}
           fill="none"
@@ -117,14 +124,20 @@ export function CodSeal({ className = '' }) {
 // Painted CTA pill — decorative only, the exported image is static.
 export function CtaPill({ label = 'اطلب الآن' }) {
   return (
-    <div className="inline-block rounded-2xl bg-gradient-to-b from-cod-500 to-cod-600 px-16 py-5 text-[32px] font-extrabold text-white shadow-[0_12px_28px_rgba(22,163,74,0.35)]">
+    <div
+      className="inline-block rounded-2xl px-16 py-5 text-[32px] font-extrabold text-white"
+      style={{
+        backgroundImage: 'linear-gradient(to bottom, var(--t-cta-from), var(--t-cta-to))',
+        boxShadow: 'var(--t-cta-shadow)',
+      }}
+    >
       {label}
     </div>
   )
 }
 
-// Closing in the reference style: wax seal, bold closing headline
-// (products.closing_line), painted CTA, and 0-2 floating photos beside.
+// Closing: wax seal, bold closing headline (products.closing_line),
+// painted CTA, and 0-2 floating photos beside.
 export function ClosingSection({ closingLine, images = [] }) {
   const [first, second] = images
   return (
@@ -132,7 +145,7 @@ export function ClosingSection({ closingLine, images = [] }) {
       <div className="flex items-center gap-12">
         <div className="min-w-0 flex-1">
           <CodSeal className="-rotate-6" />
-          <h2 className="mt-8 font-display text-[54px] font-extrabold leading-[1.3] text-espresso-900">
+          <h2 className="mt-8 text-[54px] font-extrabold leading-[1.3] text-[var(--t-ink)] [font-family:var(--t-display)]">
             {closingLine || 'اطلب الآن وريّح راسك!'}
           </h2>
           <div className="mt-12">

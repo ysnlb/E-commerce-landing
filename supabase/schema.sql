@@ -10,6 +10,7 @@ create table products (
   name text not null,
   price numeric,
   template_id text not null default 'A', -- 'A' | 'B' | 'C'
+  theme_id text not null default 'warm', -- see src/lib/themes.js (warm | night | mint | blush | ocean | poster)
   headline text,
   subheadline text,
   description text,

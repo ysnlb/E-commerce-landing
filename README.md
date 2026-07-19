@@ -56,6 +56,7 @@ create table products (
   name text not null,
   price numeric,
   template_id text not null default 'A', -- 'A' | 'B' | 'C'
+  theme_id text not null default 'warm', -- see src/lib/themes.js
   headline text,
   subheadline text,
   description text,
@@ -108,6 +109,11 @@ create policy "Authenticated delete product-images"
   using (bucket_id = 'product-images');
 ```
 
+> **Existing database?** The `theme_id` column was added after the initial schema — run this once before pulling the themes update:
+> ```sql
+> alter table products add column if not exists theme_id text not null default 'warm';
+> ```
+
 **Bucket access model:** `product-images` is a **public-read** bucket (anyone with a URL can view images — required because exported ads and the templates load them directly); all writes/deletes require an authenticated session.
 
 **Auth (single account):**
@@ -133,13 +139,14 @@ npm run preview   # serve the built dist/ locally
 - **`/` dashboard** (`src/pages/Dashboard.jsx`) — fetches `id, name, price, template_id, image_urls, created_at` ordered newest-first; cards with first-image thumbnail, name, price (`ar-DZ` locale), created date, template badge; **edit** link; **two-step inline delete** (row first, then best-effort storage cleanup via `src/lib/storage.js`); empty state linking to `/new`.
 - **`/new` and `/edit/:productId`** (`src/pages/ProductForm.jsx`, one shared component) — fields: name*, price, template dropdown (A/B/C), headline*, subheadline, description, 3 feature rows (icon from the fixed 12-icon map in `src/lib/icons.js` + label + description), closing line; `ImageUploader` (1–4 images, local previews, native HTML5 drag reorder, first image = main, ≥1 required); inline validation, no alerts. Create: client-generated uuid → uploads to `product-images/{id}/{timestamp}-{n}.{ext}` → insert. Edit: prefills from the row, mixed existing-URL/new-File images, uploads only new files, removes dropped images from storage after a successful update. Failed saves clean up newly uploaded files.
 - **`/preview/:productId`** (`src/pages/Preview.jsx`) — fetches the row, renders `TemplateCanvas` (fixed 1080px RTL canvas, switches A/B/C by `template_id`, unknown values fall back to A) inside `ScaledPreview` (fit-to-width scaling, full-res DOM preserved). Export toolbar: WebP/JPG toggle → `html-to-image` `toCanvas` at `pixelRatio: 2` → `canvas.toBlob` → download named `{slug}-ad.{ext}` (slug keeps Arabic letters, falls back to short id). Loading + inline error states.
-- **Templates** (`src/components/templates/`) — modern reference-style ad design: full-bleed photos melting into a warm-white canvas via gradient washes, espresso display typography (Baloo Bhaijaan 2 headlines + Cairo body), red rotated strikethrough, tan rounded icon tiles joined by a dashed connector, floating rounded photos with soft shadows. A (container/home), B (wearable/lifestyle), C (gadget: floating hero on a radial glow + frosted spec tiles); shared closing (scalloped wax-seal COD badge, bold closing headline from `closing_line`, painted «اطلب الآن» CTA pill, floating photo collage). Graceful fallbacks throughout: empty descriptions render nothing, missing images collapse their slots, empty features hide the section.
+- **Templates** (`src/components/templates/`) — modern reference-style ad design: full-bleed photos melting into a warm-white canvas via gradient washes, espresso display typography (Baloo Bhaijaan 2 headlines + Cairo body), red rotated strikethrough, tan rounded icon tiles joined by a dashed connector, floating rounded photos with soft shadows. A (container/home), B (wearable/lifestyle), C (gadget: floating hero on a radial glow + frosted spec tiles); shared closing (scalloped wax-seal COD badge, bold closing headline from `closing_line`, painted «اطلب الآن» CTA pill, floating photo collage). Graceful fallbacks throughout: empty descriptions render nothing, missing images collapse their slots, empty features hide the section. **Six selectable themes** (palette + Arabic font pairing: Cairo/Baloo Bhaijaan 2/Changa/Almarai/Noto Kufi/Rubik/El Messiri/Tajawal/Lalezar) via `products.theme_id`, injected as CSS variables on the canvas root.
 
 ### Usage conventions (data-driven behavior)
 
 - **Strikethrough sub-word:** wrap a word in tildes in the headline — `وداعاً للفوضى ~وللغلاء~` — to get the strikethrough "before" effect. No tildes = plain headline.
 - **Image order matters:** image 1 = hero/lifestyle. A: image 2 = side close-up, images 3–4 = closing collage. B: images 2–3 = variant shots, image 4 = closing photo. C: images 2–3 = closing collage. Reorder by dragging in the form.
 - **`closing_line` renders as the bold closing headline** (e.g. «خزانتك تولي تبرق ومفرزة!»); the CTA pill text is fixed («اطلب الآن»).
+- **Themes:** six palette + font presets — `warm`, `night`, `mint`, `blush`, `ocean`, `poster` (defined in `src/lib/themes.js`) — picked in the form or switched live from the preview toolbar (persists to the row). Unknown ids fall back to `warm`.
 
 ### Placeholders / stubs (NOT functional)
 
@@ -193,6 +200,7 @@ Built across separate prompts; the following is an honest audit:
     ├── lib/
     │   ├── supabase.js           client from VITE_ env vars (deliberately no top-level guard — see above)
     │   ├── icons.js              fixed 12-icon feature map + Arabic tooltip labels
+    │   ├── themes.js             six theme presets (palette + font pairing) + CSS-var injection
     │   ├── storage.js            public URL → bucket path helpers, best-effort file removal
     │   └── aiHooks.js            STUBS: generateCopy / enhanceImage / selectTemplate (all throw)
     ├── hooks/
