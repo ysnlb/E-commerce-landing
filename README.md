@@ -131,6 +131,37 @@ npm run build     # production build → dist/
 npm run preview   # serve the built dist/ locally
 ```
 
+## AI features (Gemini via Supabase Edge Functions)
+
+The three AI buttons (اقتراح النصوص، تحسين الصورة، اختيار تلقائي) are fully wired end-to-end. The Gemini API key lives **server-side only** — three Edge Functions in [`supabase/functions/`](supabase/functions) verify your Supabase login (the anon key alone is rejected), call Gemini, and return results to `src/lib/aiHooks.js`:
+
+| Function | Does | Model (default) |
+|---|---|---|
+| `generate-copy` | Full ad copy in **Algerian Darija** (strict prompt, JSON schema, icons constrained to the app's 12 keys, `~strike~` supported) | `gemini-2.5-flash` |
+| `enhance-image` | Product photo cleanup: clutter removed, clean studio background, better lighting — product itself untouched | `gemini-2.5-flash-image` |
+| `select-template` | Picks `template_id` (A/B/C) **and** `theme_id`, optionally looking at the first product photo | `gemini-2.5-flash` |
+
+### One-time setup (~5 minutes)
+
+1. Get a Gemini API key at [aistudio.google.com](https://aistudio.google.com) → **Get API key**. Never commit it or paste it into chats — it only goes into step 3.
+2. Link the repo to your Supabase project (project ref = the id in your dashboard URL):
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref YOUR_PROJECT_REF
+   ```
+3. Store the key as a server-side secret:
+   ```bash
+   npx supabase secrets set GEMINI_API_KEY=your_key_here
+   ```
+4. Deploy the three functions:
+   ```bash
+   npx supabase functions deploy generate-copy enhance-image select-template
+   ```
+   *No CLI? Dashboard alternative: Edge Functions → Deploy a new function → create each of the three names and paste the code from `supabase/functions/<name>/index.ts` (plus `_shared/mod.ts` alongside), then add `GEMINI_API_KEY` under Edge Functions → Secrets.*
+5. Done — press the buttons in the form. Errors (missing key, quota, etc.) surface in the toast's detail line.
+
+**If Google renames models later:** override without code changes via secrets `GEMINI_TEXT_MODEL` / `GEMINI_IMAGE_MODEL`.
+
 ## Feature status
 
 ### Implemented (code-complete)
@@ -148,13 +179,13 @@ npm run preview   # serve the built dist/ locally
 - **`closing_line` renders as the bold closing headline** (e.g. «خزانتك تولي تبرق ومفرزة!»); the CTA pill text is fixed («اطلب الآن»).
 - **Themes:** six palette + font presets — `warm`, `night`, `mint`, `blush`, `ocean`, `poster` (defined in `src/lib/themes.js`) — picked in the form or switched live from the preview toolbar (persists to the row). Unknown ids fall back to `warm`.
 
-### Placeholders / stubs (NOT functional)
+### AI features (implemented — need the one-time setup above)
 
-- **`src/lib/aiHooks.js`** — all three functions throw immediately (`… not configured yet — add API key in aiHooks.js`):
-  - `generateCopy(productInfo)` → will draft Darija ad copy; documented to resolve `{ headline, subheadline, description, features[], closing_line }`
-  - `enhanceImage(imageFile)` → will clean up product photos; documented to resolve a Blob/File
-  - `selectTemplate(productInfo)` → will pick `'A' | 'B' | 'C'`; until then template choice is the manual dropdown
-  - The form buttons (اقتراح النصوص, per-thumbnail ✨ enhance, اختيار تلقائي) call these, show a toast on the throw, and **already apply the documented return shapes** — so implementing a hook in `aiHooks.js` is a one-file change.
+- **`src/lib/aiHooks.js`** calls the three Edge Functions via `supabase.functions.invoke` (your login JWT is sent automatically):
+  - `generateCopy(productInfo)` → Darija ad copy; the form merges `{ headline, subheadline, description, features[], closing_line }` into the fields
+  - `enhanceImage(imageFile)` → accepts a new File or an already-uploaded image URL; resolves a `File` and the thumbnail swaps in place
+  - `selectTemplate(productInfo)` → resolves `{ template_id, theme_id }`; the form applies both
+  - Until the functions are deployed and `GEMINI_API_KEY` is set, the buttons show a failure toast with the technical detail.
 
 ### Stored but never rendered
 
@@ -173,7 +204,8 @@ Built across separate prompts; the following is an honest audit:
 - **Storage cleanup is best-effort.** Delete removes the DB row first, then files — a failed cleanup silently leaves orphan files in the bucket. Same pattern for failed saves.
 - **RLS is account-wide, not row-scoped.** Any authenticated user has full access; security rests on keeping Supabase sign-ups disabled.
 - **Template C caps at 3 spec callouts** (the design brief mentioned 3–4, but the form has exactly 3 feature rows). Template A's optional closing grid similarly maxes out at 2 photos (brief said 2–3) because of the 4-image cap.
-- **`selectTemplate` gets image URLs only in edit mode** — on a fresh `/new`, files aren't uploaded yet, so the stub receives an empty `image_urls` list. Fine for now; worth revisiting when wiring real AI.
+- **The AI path is untested end-to-end until a real `GEMINI_API_KEY` is set** — the Edge Functions and client wiring are code-complete but have never run against live Gemini. First test each button on a saved product and read the toast detail line if something fails. Model names are pinned to `gemini-2.5-flash` / `gemini-2.5-flash-image` defaults and can be overridden via secrets if Google renames them.
+- **`selectTemplate` sees image URLs only in edit mode** — on a fresh `/new`, files aren't uploaded yet, so it decides from text alone there. `enhance-image` payloads are limited by function/Gemini request caps (~20 MB); extremely large photos may fail.
 - **A production build without env vars "succeeds" silently** — `createClient(undefined)` then throws at runtime (blank page + console error). If a deployed site renders nothing, check the Vercel env vars before anything else.
 - **The closing contains a painted, non-interactive CTA pill** («اطلب الآن») — a deliberate deviation from the original "no button" requirement, added to match the reference ad design the templates were rebuilt against. Remove `CtaPill` from `ClosingSection` if unwanted.
 - **No automated tests, no linting.**
@@ -192,7 +224,12 @@ Built across separate prompts; the following is an honest audit:
 ├── vite.config.js                React + Tailwind v4 plugins
 ├── .env.example                  the two required VITE_ vars
 ├── supabase/
-│   └── schema.sql                products table + RLS + updated_at trigger + bucket + storage policies
+│   ├── schema.sql                products table + RLS + updated_at trigger + bucket + storage policies
+│   └── functions/                AI Edge Functions (deploy once, key stays server-side)
+│       ├── _shared/mod.ts        CORS/JSON helpers, auth guard, Gemini REST helpers
+│       ├── generate-copy/        Darija ad copy (JSON schema, icon enum)
+│       ├── enhance-image/        product photo cleanup (base64 or URL in, image out)
+│       └── select-template/      picks template A/B/C + theme, sees first photo
 └── src/
     ├── main.jsx                  entry, mounts <App/>
     ├── App.jsx                   routes + session gate (/login, /, /new, /edit/:id, /preview/:id)
@@ -202,7 +239,7 @@ Built across separate prompts; the following is an honest audit:
     │   ├── icons.js              fixed 12-icon feature map + Arabic tooltip labels
     │   ├── themes.js             six theme presets (palette + font pairing) + CSS-var injection
     │   ├── storage.js            public URL → bucket path helpers, best-effort file removal
-    │   └── aiHooks.js            STUBS: generateCopy / enhanceImage / selectTemplate (all throw)
+    │   └── aiHooks.js            AI client: calls the Edge Functions, converts results for the form
     ├── hooks/
     │   └── useSession.js         Supabase session state + auth listener
     ├── components/

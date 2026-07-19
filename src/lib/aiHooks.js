@@ -1,30 +1,53 @@
-// Placeholder hooks for future AI features. Each one throws until a real
-// API key + implementation is added HERE. The form already applies the
-// documented resolve shapes, so activating any hook is a one-file change.
+import { supabase } from './supabase'
 
-// Will call a text-generation API (e.g. Gemini) to draft ad copy from raw
-// product info. Output must be in Algerian Darija (spoken Algerian dialect,
-// written in Arabic script) — NOT Modern Standard Arabic (Fusha). Use
-// Darija vocabulary and phrasing throughout (headline, subheadline,
-// description, feature labels/descriptions, closing line). Currently
-// unimplemented.
+// Real AI implementations backed by Supabase Edge Functions
+// (supabase/functions/{generate-copy,enhance-image,select-template}) so the
+// Gemini API key stays server-side and calls require your Supabase login.
+// One-time setup (deploy functions + set GEMINI_API_KEY secret): see
+// README → "AI features". No other frontend file needs to change.
+
+async function invoke(name, body) {
+  const { data, error } = await supabase.functions.invoke(name, { body })
+  if (error) throw new Error(`${name}: ${error.message}`)
+  if (data?.error) throw new Error(`${name}: ${data.error}`)
+  return data
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).split(',')[1])
+    reader.onerror = () => reject(new Error('could not read image file'))
+    reader.readAsDataURL(file)
+  })
+}
+
+// Drafts full ad copy in Algerian Darija (NOT Fusha) from raw product info.
 // Resolves with: { headline, subheadline, description,
 //   features: [{ icon, label, description }], closing_line }
 export async function generateCopy(productInfo) {
-  throw new Error('generateCopy not configured yet — add API key in aiHooks.js')
+  return invoke('generate-copy', { product: productInfo })
 }
 
-// Will call an image-editing API (e.g. Gemini image editing) to clean up
-// background and improve a raw product photo. Currently unimplemented.
-// Resolves with: a Blob/File of the enhanced image.
+// Cleans up a product photo (background, lighting) via Gemini image editing.
+// Accepts a File/Blob (new upload) or a URL string (already uploaded image).
+// Resolves with: a File of the enhanced image.
 export async function enhanceImage(imageFile) {
-  throw new Error('enhanceImage not configured yet — add API key in aiHooks.js')
+  const body =
+    typeof imageFile === 'string'
+      ? { imageUrl: imageFile }
+      : {
+          imageBase64: await fileToBase64(imageFile),
+          mimeType: imageFile.type || 'image/jpeg',
+        }
+  const data = await invoke('enhance-image', body)
+  const bytes = Uint8Array.from(atob(data.imageBase64), (c) => c.charCodeAt(0))
+  const mime = data.mimeType ?? 'image/png'
+  return new File([bytes], `enhanced.${mime.split('/')[1] ?? 'png'}`, { type: mime })
 }
 
-// Will call a vision-capable API to look at the product info + photos and
-// return the best-fit template_id ('A' | 'B' | 'C'). Currently unimplemented
-// — template selection stays manual (the dropdown from Phase 2) until this
-// is wired in.
+// Picks the best-fit template AND theme from product info + first photo.
+// Resolves with: { template_id: 'A' | 'B' | 'C', theme_id: string }
 export async function selectTemplate(productInfo) {
-  throw new Error('selectTemplate not configured yet — add API key in aiHooks.js')
+  return invoke('select-template', { product: productInfo })
 }

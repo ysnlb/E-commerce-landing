@@ -158,7 +158,7 @@ export default function ProductForm() {
         setFeatures(rows)
       }
     } catch (err) {
-      setToast({ text: 'اقتراح النصوص بالذكاء الاصطناعي غير مفعّل بعد.', detail: err.message })
+      setToast({ text: 'فشل اقتراح النصوص.', detail: err.message })
     } finally {
       setAiBusy(null)
     }
@@ -177,7 +177,7 @@ export default function ProductForm() {
         ),
       )
     } catch (err) {
-      setToast({ text: 'تحسين الصور بالذكاء الاصطناعي غير مفعّل بعد.', detail: err.message })
+      setToast({ text: 'فشل تحسين الصورة.', detail: err.message })
     } finally {
       setAiBusy(null)
     }
@@ -186,14 +186,16 @@ export default function ProductForm() {
   async function handleAutoTemplate() {
     setAiBusy('template')
     try {
-      const templateId = await selectTemplate({
+      const res = await selectTemplate({
         ...form,
         features,
         image_urls: images.map((img) => img.url).filter(Boolean),
       })
-      setField('template_id', templateId)
+      const templateId = typeof res === 'string' ? res : res?.template_id
+      if (templateId) setField('template_id', templateId)
+      if (res?.theme_id && THEMES[res.theme_id]) setField('theme_id', res.theme_id)
     } catch (err) {
-      setToast({ text: 'الاختيار التلقائي للقالب غير مفعّل بعد.', detail: err.message })
+      setToast({ text: 'فشل الاختيار التلقائي للقالب.', detail: err.message })
     } finally {
       setAiBusy(null)
     }
