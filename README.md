@@ -4,9 +4,11 @@ Personal tool that generates tall, single-image e-commerce ad creatives (Arabic/
 
 **Stack:** React + Vite (JavaScript) · Tailwind CSS v4 · Supabase (Postgres, Auth, Storage) · Vercel · `html-to-image` (added in the export phase)
 
-## Phase 1 status
+## Status
 
-Scaffolding, RTL base + Cairo font, Supabase client, single-account auth, routing (`/login`, `/`, `/new`) and a temporary connection debug panel on the dashboard. No product form or template renderers yet — those are the next phases.
+- **Phase 1 ✓** — scaffolding, RTL base + Cairo font, Supabase client, single-account auth, routing (`/login`, `/`, `/new`), temporary connection debug panel on the dashboard.
+- **Phase 2 ✓** — `/new` product form: base fields + template selector, 3 feature rows with a fixed lucide icon set, multi-image upload (1–4 images, previews, drag reorder) into `product-images/{product_id}/`, inline validation, insert + redirect.
+- **Next** — template renderers (A/B/C) and image export.
 
 ## Setup
 
@@ -42,4 +44,5 @@ npm run dev
 ## Notes
 
 - Env vars use the `VITE_` prefix because Vite only exposes prefixed variables to client code.
+- Don't add module-level `throw`s keyed on `import.meta.env` values: they're inlined at build time, and a statically always-true throw lets the bundler dead-code-eliminate everything after it (blank app). `createClient` already fails loudly if the vars are missing.
 - The anon key is public by design; the RLS policies in `supabase/schema.sql` are what restrict `products` and storage writes to the authenticated account.
