@@ -12,7 +12,7 @@ const TEMPLATES = { A: TemplateA, B: TemplateB, C: TemplateC }
 export default function TemplateCanvas({ product, ref }) {
   const Template = TEMPLATES[product.template_id] ?? TemplateA
   return (
-    <div ref={ref} dir="rtl" lang="ar" className="w-[1080px] bg-cream-50 font-sans text-charcoal-800">
+    <div ref={ref} dir="rtl" lang="ar" className="w-[1080px] bg-[#fdfbf7] font-sans text-espresso-800">
       <Template product={product} />
     </div>
   )

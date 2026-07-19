@@ -2,6 +2,19 @@
 
 @theme {
   --font-sans: "Cairo", ui-sans-serif, system-ui, sans-serif;
+  /* Chunky rounded display font for ad headlines */
+  --font-display: "Baloo Bhaijaan 2", "Cairo", ui-sans-serif, system-ui, sans-serif;
+
+  /* Espresso browns — ad template text */
+  --color-espresso-600: #5b4332;
+  --color-espresso-700: #4a3527;
+  --color-espresso-800: #3b2a1d;
+  --color-espresso-900: #2e2015;
+
+  /* Sand/tan — feature icon tiles */
+  --color-sand-300: #dccbaa;
+  --color-sand-400: #c2ab84;
+  --color-sand-500: #ab9169;
 
   /* Warm cream backgrounds (ad canvas + app surfaces) */
   --color-cream-50: #fbf8f3;

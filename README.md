@@ -133,12 +133,13 @@ npm run preview   # serve the built dist/ locally
 - **`/` dashboard** (`src/pages/Dashboard.jsx`) — fetches `id, name, price, template_id, image_urls, created_at` ordered newest-first; cards with first-image thumbnail, name, price (`ar-DZ` locale), created date, template badge; **edit** link; **two-step inline delete** (row first, then best-effort storage cleanup via `src/lib/storage.js`); empty state linking to `/new`.
 - **`/new` and `/edit/:productId`** (`src/pages/ProductForm.jsx`, one shared component) — fields: name*, price, template dropdown (A/B/C), headline*, subheadline, description, 3 feature rows (icon from the fixed 12-icon map in `src/lib/icons.js` + label + description), closing line; `ImageUploader` (1–4 images, local previews, native HTML5 drag reorder, first image = main, ≥1 required); inline validation, no alerts. Create: client-generated uuid → uploads to `product-images/{id}/{timestamp}-{n}.{ext}` → insert. Edit: prefills from the row, mixed existing-URL/new-File images, uploads only new files, removes dropped images from storage after a successful update. Failed saves clean up newly uploaded files.
 - **`/preview/:productId`** (`src/pages/Preview.jsx`) — fetches the row, renders `TemplateCanvas` (fixed 1080px RTL canvas, switches A/B/C by `template_id`, unknown values fall back to A) inside `ScaledPreview` (fit-to-width scaling, full-res DOM preserved). Export toolbar: WebP/JPG toggle → `html-to-image` `toCanvas` at `pixelRatio: 2` → `canvas.toBlob` → download named `{slug}-ad.{ext}` (slug keeps Arabic letters, falls back to short id). Loading + inline error states.
-- **Templates** (`src/components/templates/`) — A (container/home: card photo, 3 icon feature rows + side close-up), B (wearable: full-width lifestyle photo, compact fit/details rows), C (gadget: clean hero card, dense spec-callout grid); shared closing (circular COD stamp, «اطلب الآن!», closing line, optional photo grid). Graceful fallbacks throughout: empty descriptions render nothing, missing images collapse their slots, empty features hide the section.
+- **Templates** (`src/components/templates/`) — modern reference-style ad design: full-bleed photos melting into a warm-white canvas via gradient washes, espresso display typography (Baloo Bhaijaan 2 headlines + Cairo body), red rotated strikethrough, tan rounded icon tiles joined by a dashed connector, floating rounded photos with soft shadows. A (container/home), B (wearable/lifestyle), C (gadget: floating hero on a radial glow + frosted spec tiles); shared closing (scalloped wax-seal COD badge, bold closing headline from `closing_line`, painted «اطلب الآن» CTA pill, floating photo collage). Graceful fallbacks throughout: empty descriptions render nothing, missing images collapse their slots, empty features hide the section.
 
 ### Usage conventions (data-driven behavior)
 
 - **Strikethrough sub-word:** wrap a word in tildes in the headline — `وداعاً للفوضى ~وللغلاء~` — to get the strikethrough "before" effect. No tildes = plain headline.
-- **Image order matters:** image 1 = hero/lifestyle, image 2 = side close-up (A) / first variant (B/C), images 3–4 = closing-section grids. Reorder by dragging in the form.
+- **Image order matters:** image 1 = hero/lifestyle. A: image 2 = side close-up, images 3–4 = closing collage. B: images 2–3 = variant shots, image 4 = closing photo. C: images 2–3 = closing collage. Reorder by dragging in the form.
+- **`closing_line` renders as the bold closing headline** (e.g. «خزانتك تولي تبرق ومفرزة!»); the CTA pill text is fixed («اطلب الآن»).
 
 ### Placeholders / stubs (NOT functional)
 
@@ -167,6 +168,7 @@ Built across separate prompts; the following is an honest audit:
 - **Template C caps at 3 spec callouts** (the design brief mentioned 3–4, but the form has exactly 3 feature rows). Template A's optional closing grid similarly maxes out at 2 photos (brief said 2–3) because of the 4-image cap.
 - **`selectTemplate` gets image URLs only in edit mode** — on a fresh `/new`, files aren't uploaded yet, so the stub receives an empty `image_urls` list. Fine for now; worth revisiting when wiring real AI.
 - **A production build without env vars "succeeds" silently** — `createClient(undefined)` then throws at runtime (blank page + console error). If a deployed site renders nothing, check the Vercel env vars before anything else.
+- **The closing contains a painted, non-interactive CTA pill** («اطلب الآن») — a deliberate deviation from the original "no button" requirement, added to match the reference ad design the templates were rebuilt against. Remove `CtaPill` from `ClosingSection` if unwanted.
 - **No automated tests, no linting.**
 
 ## Deployment (Vercel)
