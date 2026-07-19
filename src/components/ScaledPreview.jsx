@@ -23,7 +23,10 @@ export default function ScaledPreview({ width = 1080, children }) {
   }, [width])
 
   return (
-    <div ref={outerRef} style={{ height }} className="flex justify-center overflow-hidden">
+    // items-start is load-bearing: without it the flex child stretches to the
+    // outer's explicit height, which is derived from the child's height —
+    // a feedback loop that collapses the preview to a few pixels.
+    <div ref={outerRef} style={{ height }} className="flex items-start justify-center overflow-hidden">
       <div
         ref={innerRef}
         style={{ width, transform: `scale(${scale})`, transformOrigin: 'top center' }}
