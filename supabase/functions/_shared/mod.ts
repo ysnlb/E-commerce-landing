@@ -45,6 +45,16 @@ export async function callGemini(model, payload) {
   return res.json()
 }
 
+// Parses model JSON output, tolerating markdown code fences the model
+// sometimes wraps around JSON despite responseMimeType.
+export function parseModelJson(text) {
+  const cleaned = String(text)
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+  return JSON.parse(cleaned)
+}
+
 export function firstText(geminiResponse) {
   const parts = geminiResponse?.candidates?.[0]?.content?.parts ?? []
   const part = parts.find((p) => typeof p.text === 'string')

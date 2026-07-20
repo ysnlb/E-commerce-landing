@@ -1,6 +1,6 @@
 // Drafts full ad copy in Algerian Darija from raw product info.
 // Called by src/lib/aiHooks.js → generateCopy().
-import { callGemini, corsHeaders, firstText, json, requireUser } from '../_shared/mod.ts'
+import { callGemini, corsHeaders, firstText, json, parseModelJson, requireUser } from '../_shared/mod.ts'
 
 const MODEL = Deno.env.get('GEMINI_TEXT_MODEL') ?? 'gemini-2.5-flash'
 
@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
 
     const text = firstText(result)
     if (!text) return json({ error: 'empty model response' }, 502)
-    return json(JSON.parse(text))
+    return json(parseModelJson(text))
   } catch (err) {
     return json({ error: String(err?.message ?? err) }, 500)
   }

@@ -168,6 +168,20 @@ The three AI buttons (اقتراح النصوص، تحسين الصورة، اخ
 
 **If Google renames models later:** override without code changes via secrets `GEMINI_TEXT_MODEL` / `GEMINI_IMAGE_MODEL`.
 
+### Troubleshooting the AI buttons
+
+The toast's small detail line shows the function's real error. Common cases:
+
+| Toast detail says | Fix |
+|---|---|
+| `GEMINI_API_KEY secret is not set` | Run setup step 3 (`npx supabase secrets set GEMINI_API_KEY=...`) — no redeploy needed, secrets apply immediately |
+| `HTTP 404 ... models/... is not found` | Google renamed the model — set `npx supabase secrets set GEMINI_TEXT_MODEL=<current-text-model> GEMINI_IMAGE_MODEL=<current-image-model>` using a model name from [ai.google.dev/models](https://ai.google.dev/gemini-api/docs/models) |
+| `HTTP 429` | Free-tier quota exhausted — wait or upgrade the key |
+| `unauthorized` | The session expired — sign out and back in |
+| `Failed to send a request to the Edge Function` | Functions not deployed yet — setup step 4 |
+
+**After pulling any change to `supabase/functions/`, redeploy:** `npx supabase functions deploy generate-copy enhance-image select-template`
+
 ## Feature status
 
 ### Implemented (code-complete)

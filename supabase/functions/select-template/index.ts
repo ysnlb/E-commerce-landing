@@ -1,6 +1,6 @@
 // Picks the best-fit template (A/B/C) and theme for a product, optionally
 // looking at the first product photo. Called by aiHooks.js → selectTemplate().
-import { bytesToBase64, callGemini, corsHeaders, firstText, json, requireUser } from '../_shared/mod.ts'
+import { bytesToBase64, callGemini, corsHeaders, firstText, json, parseModelJson, requireUser } from '../_shared/mod.ts'
 
 const MODEL = Deno.env.get('GEMINI_TEXT_MODEL') ?? 'gemini-2.5-flash'
 
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
     const text = firstText(result)
     if (!text) return json({ error: 'empty model response' }, 502)
-    return json(JSON.parse(text))
+    return json(parseModelJson(text))
   } catch (err) {
     return json({ error: String(err?.message ?? err) }, 500)
   }

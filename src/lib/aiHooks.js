@@ -8,7 +8,18 @@ import { supabase } from './supabase'
 
 async function invoke(name, body) {
   const { data, error } = await supabase.functions.invoke(name, { body })
-  if (error) throw new Error(`${name}: ${error.message}`)
+  if (error) {
+    // FunctionsHttpError hides the function's JSON body — dig the real
+    // error message out of the response so the toast shows the true cause.
+    let detail = error.message
+    try {
+      const responseBody = await error.context?.json()
+      if (responseBody?.error) detail = responseBody.error
+    } catch {
+      // keep the generic message
+    }
+    throw new Error(`${name}: ${detail}`)
+  }
   if (data?.error) throw new Error(`${name}: ${data.error}`)
   return data
 }
@@ -41,9 +52,18 @@ export async function enhanceImage(imageFile) {
           mimeType: imageFile.type || 'image/jpeg',
         }
   const data = await invoke('enhance-image', body)
-  const bytes = Uint8Array.from(atob(data.imageBase64), (c) => c.charCodeAt(0))
-  const mime = data.mimeType ?? 'image/png'
-  return new File([bytes], `enhanced.${mime.split('/')[1] ?? 'png'}`, { type: mime })
+  if (!data?.imageBase64) throw new Error('enhance-image: empty image in response')
+  return base64ToFile(data.imageBase64, data.mimeType)
+}
+
+// Decodes model-returned base64 defensively: strips whitespace/newlines,
+// converts base64url variants, and fixes padding before atob.
+function base64ToFile(b64, mime) {
+  let clean = String(b64).replace(/[\s\r\n]/g, '').replace(/-/g, '+').replace(/_/g, '/')
+  while (clean.length % 4 !== 0) clean += '='
+  const bytes = Uint8Array.from(atob(clean), (c) => c.charCodeAt(0))
+  const type = mime ?? 'image/png'
+  return new File([bytes], `enhanced.${type.split('/')[1] ?? 'png'}`, { type })
 }
 
 // Picks the best-fit template AND theme from product info + first photo.

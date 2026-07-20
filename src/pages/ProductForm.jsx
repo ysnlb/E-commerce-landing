@@ -176,6 +176,7 @@ export default function ProductForm() {
           })),
         )
       }
+      setToast({ text: 'تم اقتراح النصوص ✓' })
     } catch (err) {
       setToast({ text: 'فشل اقتراح النصوص.', detail: err.message })
     } finally {
@@ -195,6 +196,7 @@ export default function ProductForm() {
             : img,
         ),
       )
+      setToast({ text: 'تم تحسين الصورة ✓' })
     } catch (err) {
       setToast({ text: 'فشل تحسين الصورة.', detail: err.message })
     } finally {
@@ -211,8 +213,11 @@ export default function ProductForm() {
         image_urls: images.map((img) => img.url).filter(Boolean),
       })
       const templateId = typeof res === 'string' ? res : res?.template_id
-      if (templateId) setField('template_id', templateId)
-      if (res?.theme_id && THEMES[res.theme_id]) setField('theme_id', res.theme_id)
+      if (!templateId) throw new Error('الرد ما فيهش قالب — أعد المحاولة.')
+      setField('template_id', templateId)
+      const theme = res?.theme_id && THEMES[res.theme_id] ? THEMES[res.theme_id] : null
+      if (theme) setField('theme_id', res.theme_id)
+      setToast({ text: `تم الاختيار: قالب ${templateId}${theme ? ` + ثيم «${theme.label}»` : ''} ✓` })
     } catch (err) {
       setToast({ text: 'فشل الاختيار التلقائي للقالب.', detail: err.message })
     } finally {
