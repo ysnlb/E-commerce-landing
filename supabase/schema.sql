@@ -6,6 +6,7 @@
 -- Products table
 create table products (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz default now(),
   name text not null,
   price numeric,
@@ -26,15 +27,16 @@ create table products (
   updated_at timestamptz default now()
 );
 
--- The anon key ships in the browser bundle, so lock the table down:
--- only the signed-in user (you) can read or write.
+-- Per-owner isolation: every account only sees and edits its own rows.
 alter table products enable row level security;
 
-create policy "Authenticated full access"
+create policy "Owner full access"
   on products for all
   to authenticated
-  using (true)
-  with check (true);
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create index products_user_id_idx on products (user_id);
 
 -- Keep updated_at fresh automatically on every update.
 create or replace function set_updated_at()
@@ -60,24 +62,24 @@ create trigger products_set_updated_at
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true);
 
--- Public read is handled by the bucket's public flag. These policies
--- let the signed-in user manage files through the client SDK.
-create policy "Authenticated read product-images"
-  on storage.objects for select
-  to authenticated
-  using (bucket_id = 'product-images');
-
-create policy "Authenticated upload product-images"
+-- Public read is handled by the bucket's public flag. These policies give
+-- each account access to its own files only (uploads go to {user_id}/...).
+create policy "Users upload to own folder"
   on storage.objects for insert
   to authenticated
-  with check (bucket_id = 'product-images');
+  with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "Authenticated update product-images"
+create policy "Users read own files"
+  on storage.objects for select
+  to authenticated
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
+
+create policy "Users update own files"
   on storage.objects for update
   to authenticated
-  using (bucket_id = 'product-images');
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
 
-create policy "Authenticated delete product-images"
+create policy "Users delete own files"
   on storage.objects for delete
   to authenticated
-  using (bucket_id = 'product-images');
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);

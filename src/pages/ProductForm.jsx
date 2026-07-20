@@ -231,6 +231,12 @@ export default function ProductForm() {
     const id = productId ?? crypto.randomUUID()
     const newPaths = []
     try {
+      // Uploads are stored under {user_id}/{product_id}/ — storage RLS only
+      // allows writing inside your own folder.
+      const { data: userData, error: userError } = await supabase.auth.getUser()
+      if (userError || !userData?.user) throw new Error('انتهت الجلسة — سجّل الدخول من جديد.')
+      const uid = userData.user.id
+
       const urls = []
       for (const [i, img] of images.entries()) {
         if (img.url) {
@@ -239,7 +245,7 @@ export default function ProductForm() {
         }
         const parts = img.file.name.split('.')
         const ext = parts.length > 1 ? parts.pop().toLowerCase() : 'jpg'
-        const path = `${id}/${Date.now()}-${i + 1}.${ext}`
+        const path = `${uid}/${id}/${Date.now()}-${i + 1}.${ext}`
         const { error } = await supabase.storage.from('product-images').upload(path, img.file)
         if (error) throw error
         newPaths.push(path)
@@ -281,7 +287,7 @@ export default function ProductForm() {
         const removed = (original?.image_urls ?? []).filter((u) => !urls.includes(u))
         await removeImagesByUrls(removed)
       } else {
-        const { error } = await supabase.from('products').insert({ id, ...row })
+        const { error } = await supabase.from('products').insert({ id, user_id: uid, ...row })
         if (error) throw error
       }
 

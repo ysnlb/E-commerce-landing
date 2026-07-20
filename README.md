@@ -1,6 +1,6 @@
 # DZ Ad Creatives
 
-Personal web tool that generates **tall, single-image e-commerce ad creatives** in the style of Algerian dropshipping ads — Arabic/Darija copy, full RTL layout, product photos, benefit icons, and a green "Cash on Delivery" badge. Products are stored in Supabase and rendered through one of **four 800px-wide landing-page templates** (up to 7000px tall — every section collapses when its data is empty, so pages shorten automatically), then exported client-side as a downloadable WebP/JPG at 2× resolution. Single-user app: one hardcoded Supabase Auth account, no sign-up flow.
+Personal web tool that generates **tall, single-image e-commerce ad creatives** in the style of Algerian dropshipping ads — Arabic/Darija copy, full RTL layout, product photos, benefit icons, and a green "Cash on Delivery" badge. Products are stored in Supabase and rendered through one of **four 800px-wide landing-page templates** (up to 7000px tall — every section collapses when its data is empty, so pages shorten automatically), then exported client-side as a downloadable WebP/JPG at 2× resolution. Multi-account: every Supabase Auth account is fully isolated — RLS scopes both product rows and storage files to their owner, so nobody sees anyone else's content. There is no in-app sign-up flow; create accounts in the Supabase dashboard (or enable public sign-ups — isolation holds either way).
 
 ## Tech stack
 
@@ -52,6 +52,7 @@ There is no migrations folder; the full schema lives in [`supabase/schema.sql`](
 -- Products table
 create table products (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   created_at timestamptz default now(),
   name text not null,
   price numeric,
@@ -72,14 +73,16 @@ create table products (
   updated_at timestamptz default now()
 );
 
--- The anon key ships in the browser bundle — lock the table to signed-in users
+-- Per-owner isolation: every account only sees and edits its own rows
 alter table products enable row level security;
 
-create policy "Authenticated full access"
+create policy "Owner full access"
   on products for all
   to authenticated
-  using (true)
-  with check (true);
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+create index products_user_id_idx on products (user_id);
 
 -- Keep updated_at fresh automatically (the app never sets it client-side)
 create or replace function set_updated_at()
@@ -98,21 +101,21 @@ create trigger products_set_updated_at
 insert into storage.buckets (id, name, public)
 values ('product-images', 'product-images', true);
 
-create policy "Authenticated read product-images"
-  on storage.objects for select to authenticated
-  using (bucket_id = 'product-images');
-
-create policy "Authenticated upload product-images"
+create policy "Users upload to own folder"
   on storage.objects for insert to authenticated
-  with check (bucket_id = 'product-images');
+  with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
 
-create policy "Authenticated update product-images"
+create policy "Users read own files"
+  on storage.objects for select to authenticated
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
+
+create policy "Users update own files"
   on storage.objects for update to authenticated
-  using (bucket_id = 'product-images');
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
 
-create policy "Authenticated delete product-images"
+create policy "Users delete own files"
   on storage.objects for delete to authenticated
-  using (bucket_id = 'product-images');
+  using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
 ```
 
 > **Existing database?** Run whichever of these you're missing (all idempotent):
@@ -124,13 +127,35 @@ create policy "Authenticated delete product-images"
 > alter table products add column if not exists usage_steps text;
 > alter table products add column if not exists specs jsonb;
 > alter table products add column if not exists reviews jsonb;
+>
+> -- Multi-account isolation (assigns existing rows to the oldest account):
+> alter table products add column if not exists user_id uuid references auth.users (id) on delete cascade;
+> update products set user_id = (select id from auth.users order by created_at asc limit 1) where user_id is null;
+> alter table products alter column user_id set not null;
+> alter table products alter column user_id set default auth.uid();
+> create index if not exists products_user_id_idx on products (user_id);
+> drop policy if exists "Authenticated full access" on products;
+> create policy "Owner full access" on products for all to authenticated
+>   using (user_id = auth.uid()) with check (user_id = auth.uid());
+> drop policy if exists "Authenticated read product-images" on storage.objects;
+> drop policy if exists "Authenticated upload product-images" on storage.objects;
+> drop policy if exists "Authenticated update product-images" on storage.objects;
+> drop policy if exists "Authenticated delete product-images" on storage.objects;
+> create policy "Users upload to own folder" on storage.objects for insert to authenticated
+>   with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
+> create policy "Users read own files" on storage.objects for select to authenticated
+>   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
+> create policy "Users update own files" on storage.objects for update to authenticated
+>   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
+> create policy "Users delete own files" on storage.objects for delete to authenticated
+>   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
 > ```
 
 **Bucket access model:** `product-images` is a **public-read** bucket (anyone with a URL can view images — required because exported ads and the templates load them directly); all writes/deletes require an authenticated session.
 
-**Auth (single account):**
-1. Authentication → Sign In / Up → turn **off** "Allow new users to sign up". The RLS policy grants *every* authenticated user full access, so this toggle is the actual security boundary.
-2. Authentication → Users → **Add user → Create new user** → your email + password → check **Auto Confirm User**.
+**Auth (multi-account):**
+1. Accounts are fully isolated by RLS (rows + files). Create each account in **Authentication → Users → Add user → Create new user** (your email + password, check **Auto Confirm User**) — or enable "Allow new users to sign up" for open registration (note: the app has no sign-up page; ask for one if you want it).
+2. Keeping sign-ups **off** is still recommended when only specific people should have accounts.
 
 ## Installation & running locally
 
@@ -221,7 +246,8 @@ Built across separate prompts; the following is an honest audit:
 - **Templates were visually verified — with mock data.** All three templates were rendered and inspected via a standalone harness (sample Darija copy + inline data-URI images). That pass caught and fixed a real bug: `ScaledPreview` collapsed to ~4px because the flex child stretched to the outer's derived height (ResizeObserver feedback loop). The `items-start` on the outer container is load-bearing — see the comment in `src/components/ScaledPreview.jsx`. Rendering with real Supabase URLs is expected to be identical but wasn't part of that pass.
 - **Image reordering:** arrow buttons on each thumbnail work everywhere (including touch); drag-and-drop additionally works on desktop only (native HTML5 drag events).
 - **Storage cleanup is best-effort.** Delete removes the DB row first, then files — a failed cleanup silently leaves orphan files in the bucket. Same pattern for failed saves.
-- **RLS is account-wide, not row-scoped.** Any authenticated user has full access; security rests on keeping Supabase sign-ups disabled.
+- **Per-account isolation is enforced by RLS** on both rows (`user_id = auth.uid()`) and storage (owner/folder checks). Images remain publicly readable **by URL** (public bucket — required for the templates and exported ads); isolation covers listing/modifying, not someone who already holds an exact URL.
+- **Storage files uploaded before the multi-account migration** live at `{product_id}/...` (no user folder). The migration's `or owner = auth.uid()` clause keeps them manageable by their original uploader; new uploads go to `{user_id}/{product_id}/...`.
 - **The 7000px cap hard-clips overflowing content** (`overflow: hidden` on the canvas). The preview shows an amber warning with the real content height when this happens — trim images/paragraphs until it clears.
 - **The AI path is untested end-to-end until a real `GEMINI_API_KEY` is set** — the Edge Functions and client wiring are code-complete but have never run against live Gemini. First test each button on a saved product and read the toast detail line if something fails. Model names are pinned to `gemini-2.5-flash` / `gemini-2.5-flash-image` defaults and can be overridden via secrets if Google renames them.
 - **`selectTemplate` sees image URLs only in edit mode** — on a fresh `/new`, files aren't uploaded yet, so it decides from text alone there. `enhance-image` payloads are limited by function/Gemini request caps (~20 MB); extremely large photos may fail.
