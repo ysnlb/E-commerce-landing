@@ -1,71 +1,97 @@
-import { ClosingSection, FeatureRows, Headline, softText } from './shared'
+import {
+  AnnouncementBar, BadgePill, BulletList, CtaBlock, Headline, Para, PhotoBand,
+  PhotoGrid, PricePill, SectionTitle, SpecsTable, StepsSection, Testimonials,
+  TrustStrip, splitParagraphs,
+} from './shared'
 
-// Template A — container / home item.
-// Image slots: [0] hero, [1] close-up beside the feature rows,
-// [2..3] floating photos in the closing.
+// Template A — «متجر أنيق» (refs: smartwatch / ultrasonic cleaner).
+// Dark hero + bestseller badge + price pill + bullet features beside a photo
+// + ink callout band + trust strip + testimonials. Every section collapses
+// when its data is missing.
 export default function TemplateA({ product }) {
-  const [main, closeUp, ...rest] = product.image_urls ?? []
+  const imgs = product.image_urls ?? []
   const features = product.features ?? []
+  const paras = splitParagraphs(product.description)
 
   return (
-    <div>
-      {/* Header: headline block melting into a full-bleed hero photo */}
-      <header className="relative">
-        <div className="relative z-10 px-16 pt-20 text-center">
-          <Headline
-            text={product.headline}
-            className="text-[64px] font-extrabold leading-[1.3]"
+    <div className="pb-16">
+      <AnnouncementBar text={product.announcement} />
+
+      {/* Dark hero */}
+      <header className="bg-[var(--t-ink)] px-12 pb-14 pt-14 text-center">
+        <Headline
+          text={product.headline}
+          className="!text-[var(--t-canvas)] text-[52px] font-extrabold leading-[1.3]"
+        />
+        {product.subheadline && (
+          <p className="mx-auto mt-4 max-w-[600px] text-[24px] font-semibold leading-relaxed text-[var(--t-canvas)] opacity-75">
+            {product.subheadline}
+          </p>
+        )}
+        {imgs[0] && (
+          <img
+            src={imgs[0]}
+            alt=""
+            crossOrigin="anonymous"
+            className="mx-auto mt-10 h-[500px] w-full rounded-3xl object-cover shadow-2xl"
           />
-          {product.subheadline && (
-            <p className={`mx-auto mt-5 max-w-4xl text-[30px] font-semibold leading-relaxed ${softText}`}>
-              {product.subheadline}
-            </p>
-          )}
-        </div>
-        {main && (
-          <div className="relative mt-6">
-            <img
-              src={main}
-              alt=""
-              crossOrigin="anonymous"
-              className="h-[740px] w-full object-cover"
-            />
-            {/* canvas-colored washes melt the photo into the background */}
-            <div
-              className="absolute inset-x-0 top-0 h-44"
-              style={{ backgroundImage: 'linear-gradient(to bottom, var(--t-canvas), transparent)' }}
-            />
-            <div
-              className="absolute inset-x-0 bottom-0 h-44"
-              style={{ backgroundImage: 'linear-gradient(to top, var(--t-canvas), transparent)' }}
-            />
-          </div>
         )}
       </header>
 
-      {/* Features: rows with icon tiles (right) + floating close-up (left) */}
+      <BadgePill text={product.badge} className="mt-10 px-12" />
+      <PricePill price={product.price} oldPrice={product.old_price} className="mt-7 px-12" />
+
+      <PhotoBand src={imgs[1]} h={480} className="mt-12" />
+
+      {/* Features: bullets beside a photo */}
       {features.length > 0 && (
-        <section className="px-16 pb-10 pt-8">
-          <div className="flex items-center gap-12">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[46px] font-extrabold leading-tight text-[var(--t-ink)] [font-family:var(--t-display)]">
-                كاليتي متينة وتصميم هبال!
-              </h2>
-              <FeatureRows features={features} className="mt-12" />
-            </div>
-            {closeUp && (
+        <section className="mt-12 px-12">
+          <SectionTitle>مميزات المنتج</SectionTitle>
+          <div className="mt-10 flex items-center gap-8">
+            <BulletList features={features.slice(0, 3)} className="min-w-0 flex-1" />
+            {imgs[2] && (
               <img
-                src={closeUp}
+                src={imgs[2]}
                 alt=""
                 crossOrigin="anonymous"
-                className="h-[600px] w-[420px] shrink-0 -rotate-1 rounded-[36px] object-cover shadow-2xl"
+                className="h-[400px] w-[290px] shrink-0 rounded-3xl object-cover shadow-xl"
               />
             )}
           </div>
         </section>
       )}
 
-      <ClosingSection closingLine={product.closing_line} images={rest.slice(0, 2)} />
+      {/* Ink callout band */}
+      {paras[0] && (
+        <section className="mt-14 bg-[var(--t-ink)] px-12 py-12 text-center">
+          <p className="mx-auto max-w-[640px] text-[25px] font-bold leading-[1.85] text-[var(--t-canvas)] opacity-90">
+            {paras[0]}
+          </p>
+        </section>
+      )}
+
+      {/* Extra features */}
+      {features.length > 3 && (
+        <section className="mt-14 px-12">
+          <SectionTitle>مميزات أخرى</SectionTitle>
+          <BulletList features={features.slice(3, 6)} className="mt-9" />
+        </section>
+      )}
+
+      <PhotoGrid images={imgs.slice(3, 7)} className="mt-12 px-12" />
+
+      {paras[1] && <Para className="mt-12 px-12 text-center">{paras[1]}</Para>}
+
+      <StepsSection stepsText={product.usage_steps} className="mt-14 px-12" />
+      <SpecsTable specs={product.specs} className="mt-14 px-12" />
+      <TrustStrip className="mt-16 px-12" />
+      <Testimonials reviews={product.reviews} className="mt-14 px-12" />
+      <CtaBlock
+        closingLine={product.closing_line}
+        price={product.price}
+        oldPrice={product.old_price}
+        className="mt-16 px-12"
+      />
     </div>
   )
 }

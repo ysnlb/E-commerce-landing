@@ -1,78 +1,72 @@
-import { ClosingSection, Headline, IconTile, softText } from './shared'
+import {
+  AnnouncementBar, CtaBlock, Headline, IconRow, Para, PhotoBand, PhotoCollage,
+  PricePill, Ribbon, SpecsTable, StepsSection, Testimonials, TrustStrip,
+  splitParagraphs,
+} from './shared'
 
-// Template C — small gadget / accessory. Split "sticker" layout: header is
-// a side-by-side row (start-aligned text + hero in a thick white frame on a
-// tilted accent block), specs render as a dense 2-column card grid.
-// Image slots: [0] hero, [1..2] floating photos in the closing.
+// Template C — «كتالوج فاخر» (refs: makeup bag / mini projector).
+// Ribbon headings with side lines, photo collage, inline icon row,
+// alternating paragraph/photo bands, and a key/value specs table.
 export default function TemplateC({ product }) {
-  const [hero, ...details] = product.image_urls ?? []
+  const imgs = product.image_urls ?? []
   const features = product.features ?? []
+  const paras = splitParagraphs(product.description)
+
+  // Story bands: paragraphs 1..3 alternate with photos 3..5.
+  const bands = paras.slice(1, 4)
 
   return (
-    <div>
-      {/* Header: split text + framed hero */}
-      <header className="px-16 pt-20">
-        <div className="flex items-center gap-14">
-          <div className="min-w-0 flex-1 text-start">
-            <Headline
-              text={product.headline}
-              className="text-[58px] font-extrabold leading-[1.32]"
-            />
-            {product.subheadline && (
-              <p className={`mt-5 text-[29px] font-semibold leading-relaxed ${softText}`}>
-                {product.subheadline}
-              </p>
-            )}
-          </div>
-          {hero && (
-            <div className="relative shrink-0">
-              {/* tilted accent block behind the framed photo */}
-              <div
-                aria-hidden
-                className="absolute -bottom-6 -start-6 h-full w-full rotate-3 rounded-[44px] bg-[var(--t-tile)] opacity-80"
-              />
-              <img
-                src={hero}
-                alt=""
-                crossOrigin="anonymous"
-                className="relative h-[540px] w-[430px] -rotate-1 rounded-[40px] border-[10px] border-white object-cover shadow-2xl"
-              />
-            </div>
-          )}
-        </div>
+    <div className="pb-16">
+      <AnnouncementBar text={product.announcement} />
+
+      <header className="px-12 pt-12 text-center">
+        <Ribbon>{product.name}</Ribbon>
+        <Headline
+          text={product.headline}
+          className="mt-9 text-[48px] font-extrabold leading-[1.35]"
+        />
+        {product.subheadline && (
+          <p className="mx-auto mt-4 max-w-[620px] text-[25px] font-semibold leading-relaxed text-[var(--t-ink-soft)]">
+            {product.subheadline}
+          </p>
+        )}
       </header>
 
-      {/* Specs: dense 2-column card grid */}
-      {features.length > 0 && (
-        <section className="px-16 pb-6 pt-16">
-          <h2 className="text-center text-[46px] font-extrabold leading-tight text-[var(--t-ink)] [font-family:var(--t-display)]">
-            المواصفات
-          </h2>
-          <div className="mt-10 grid grid-cols-2 gap-6">
-            {features.map((f, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-5 rounded-[24px] border bg-[var(--t-card)] p-6 shadow-sm"
-                style={{ borderColor: 'var(--t-card-border)' }}
-              >
-                <IconTile name={f.icon} size={64} icon={30} />
-                <div className="min-w-0">
-                  <p className="text-[26px] font-extrabold leading-snug text-[var(--t-ink)]">
-                    {f.label}
-                  </p>
-                  {f.description && (
-                    <p className={`mt-0.5 text-[21px] font-semibold leading-snug ${softText}`}>
-                      {f.description}
-                    </p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+      <PhotoCollage images={imgs.slice(0, 3)} className="mt-10 px-12" />
+
+      <PricePill price={product.price} oldPrice={product.old_price} className="mt-10 px-12" />
+
+      {paras[0] && (
+        <section className="mt-12 px-12">
+          <Ribbon>واش يميّزو؟</Ribbon>
+          <Para className="mt-8 text-center">{paras[0]}</Para>
         </section>
       )}
 
-      <ClosingSection closingLine={product.closing_line} images={details.slice(0, 2)} />
+      <IconRow features={features} className="mt-12 px-12" />
+
+      {bands.map((text, i) => (
+        <section key={i} className="mt-14">
+          <Para className="px-12 text-center">{text}</Para>
+          <PhotoBand src={imgs[3 + i]} h={460} className="mt-9" />
+        </section>
+      ))}
+
+      {/* leftover photos, if any */}
+      {imgs.length > 3 + bands.length && (
+        <PhotoBand src={imgs[3 + bands.length]} h={460} className="mt-12" />
+      )}
+
+      <SpecsTable specs={product.specs} title="المحتويات" className="mt-14 px-12" />
+      <StepsSection stepsText={product.usage_steps} className="mt-14 px-12" />
+      <Testimonials reviews={product.reviews} className="mt-14 px-12" />
+      <TrustStrip className="mt-16 px-12" />
+      <CtaBlock
+        closingLine={product.closing_line}
+        price={product.price}
+        oldPrice={product.old_price}
+        className="mt-16 px-12"
+      />
     </div>
   )
 }

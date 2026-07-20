@@ -9,14 +9,20 @@ create table products (
   created_at timestamptz default now(),
   name text not null,
   price numeric,
-  template_id text not null default 'A', -- 'A' | 'B' | 'C'
+  old_price numeric, -- compare-at price (strikethrough in the price pill)
+  template_id text not null default 'A', -- 'A' | 'B' | 'C' | 'D'
   theme_id text not null default 'warm', -- see src/lib/themes.js (warm | night | mint | blush | ocean | poster)
+  announcement text, -- top ribbon, e.g. "تخفيض 30% وتوصيل مجاني"
+  badge text, -- authority line, e.g. "الأكثر مبيعا في الجزائر"
   headline text,
   subheadline text,
-  description text,
-  features jsonb, -- array of { icon: string, label: string, description: string }
-  closing_line text, -- short supporting line in the closing section
-  image_urls text[], -- array of Supabase Storage public URLs
+  description text, -- paragraphs (blank-line separated) interleave with photos
+  features jsonb, -- array of { icon: string, label: string, description: string } (up to 6)
+  usage_steps text, -- how-to steps, one per line
+  specs jsonb, -- array of { label: string, value: string } (spec table)
+  reviews jsonb, -- array of { name: string, text: string } (testimonials)
+  closing_line text, -- bold closing headline above the CTA
+  image_urls text[], -- array of Supabase Storage public URLs (up to 10)
   updated_at timestamptz default now()
 );
 

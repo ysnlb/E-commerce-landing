@@ -1,105 +1,77 @@
-import { ClosingSection, Headline, IconTile, softText } from './shared'
+import {
+  AnnouncementBar, CtaBlock, Headline, IconCircleGrid, Para, PhotoBand,
+  PhotoGrid, SectionTitle, SpecsTable, StepsSection, Testimonials, TrustStrip,
+  splitParagraphs,
+} from './shared'
 
-// Template B — wearable / clothing. Editorial layout: the headline is
-// OVERLAID on the full-bleed lifestyle photo (dark bottom gradient),
-// features render as full-width pill cards, variants as a thumb strip.
-// Image slots: [0] lifestyle hero, [1..2] variant thumbs, [3] closing photo.
+// Template B — «قصة إقناع» (refs: fuel saver / joint cream).
+// Pain-question headline + big circle photo + colored answer + outline icon
+// grid + alternating paragraph/photo story. Sections collapse without data.
 export default function TemplateB({ product }) {
-  const [lifestyle, variantA, variantB, last] = product.image_urls ?? []
-  const variants = [variantA, variantB].filter(Boolean)
+  const imgs = product.image_urls ?? []
   const features = product.features ?? []
+  const paras = splitParagraphs(product.description)
 
   return (
-    <div>
-      {/* Header: magazine-style text-on-photo */}
-      {lifestyle ? (
-        <header className="relative">
+    <div className="pb-16">
+      <AnnouncementBar text={product.announcement} />
+
+      {/* Pain question + circle photo */}
+      <header className="px-12 pt-14 text-center">
+        <Headline
+          text={product.headline}
+          className="text-[50px] font-extrabold leading-[1.35]"
+        />
+        {imgs[0] && (
           <img
-            src={lifestyle}
+            src={imgs[0]}
             alt=""
             crossOrigin="anonymous"
-            className="h-[1020px] w-full object-cover"
+            className="mx-auto mt-10 h-[500px] w-[500px] rounded-full border-[10px] border-[var(--t-card)] object-cover shadow-2xl"
           />
-          <div
-            aria-hidden
-            className="absolute inset-0"
-            style={{
-              backgroundImage:
-                'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 34%, transparent 60%)',
-            }}
-          />
-          <div className="absolute inset-x-0 bottom-0 px-16 pb-16 text-start">
-            <Headline
-              text={product.headline}
-              className="!text-white text-[62px] font-extrabold leading-[1.3] drop-shadow-md"
-            />
-            {product.subheadline && (
-              <p className="mt-4 max-w-4xl text-[29px] font-semibold leading-relaxed text-white/85">
-                {product.subheadline}
-              </p>
-            )}
-          </div>
-        </header>
-      ) : (
-        <header className="px-16 pt-20 text-center">
-          <Headline
-            text={product.headline}
-            className="text-[64px] font-extrabold leading-[1.3]"
-          />
-          {product.subheadline && (
-            <p className={`mx-auto mt-5 max-w-4xl text-[30px] font-semibold leading-relaxed ${softText}`}>
-              {product.subheadline}
-            </p>
-          )}
-        </header>
-      )}
+        )}
+      </header>
 
-      {/* Fit & details: full-width pill cards + variant thumb strip */}
-      {(features.length > 0 || variants.length > 0) && (
-        <section className="px-16 pb-6 pt-16">
-          <h2 className="text-[46px] font-extrabold leading-tight text-[var(--t-ink)] [font-family:var(--t-display)]">
-            المقاسات والتفاصيل
-          </h2>
-          {features.length > 0 && (
-            <div className="mt-10 space-y-6">
-              {features.map((f, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-7 rounded-[28px] border bg-[var(--t-card)] px-8 py-6 shadow-sm"
-                  style={{ borderColor: 'var(--t-card-border)' }}
-                >
-                  <IconTile name={f.icon} size={72} icon={34} />
-                  <div className="min-w-0">
-                    <p className="text-[32px] font-extrabold leading-snug text-[var(--t-ink)]">
-                      {f.label}
-                    </p>
-                    {f.description && (
-                      <p className={`mt-0.5 text-[25px] font-semibold leading-snug ${softText}`}>
-                        {f.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+      {/* The answer */}
+      {(product.subheadline || paras[0]) && (
+        <section className="mt-12 px-12 text-center">
+          {product.subheadline && (
+            <h2 className="text-[36px] font-extrabold leading-snug text-[var(--t-tile)] [font-family:var(--t-display)]">
+              {product.subheadline}
+            </h2>
           )}
-          {variants.length > 0 && (
-            <div className="mt-10 flex gap-6">
-              {variants.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  crossOrigin="anonymous"
-                  className="h-[300px] min-w-0 flex-1 rounded-[28px] object-cover shadow-lg"
-                />
-              ))}
-            </div>
-          )}
+          {paras[0] && <Para className="mx-auto mt-5 max-w-[620px]">{paras[0]}</Para>}
         </section>
       )}
 
-      <ClosingSection closingLine={product.closing_line} images={last ? [last] : []} />
+      <PhotoBand src={imgs[1]} h={500} className="mt-12" />
+
+      {/* Why you need it: outline icon circles */}
+      {features.length > 0 && (
+        <section className="mt-12 px-12">
+          <SectionTitle>علاش تحتاجو؟</SectionTitle>
+          <IconCircleGrid features={features.slice(0, 4)} className="mt-12" />
+        </section>
+      )}
+
+      {paras[1] && <Para className="mt-14 px-12 text-center">{paras[1]}</Para>}
+
+      <PhotoGrid images={imgs.slice(2, 6)} className="mt-10 px-12" />
+
+      {paras[2] && <Para className="mt-12 px-12 text-center">{paras[2]}</Para>}
+
+      <PhotoBand src={imgs[6]} h={480} className="mt-12" />
+
+      <StepsSection stepsText={product.usage_steps} className="mt-14 px-12" />
+      <SpecsTable specs={product.specs} className="mt-14 px-12" />
+      <Testimonials reviews={product.reviews} className="mt-14 px-12" />
+      <TrustStrip className="mt-16 px-12" />
+      <CtaBlock
+        closingLine={product.closing_line}
+        price={product.price}
+        oldPrice={product.old_price}
+        className="mt-16 px-12"
+      />
     </div>
   )
 }

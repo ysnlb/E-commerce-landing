@@ -1,6 +1,6 @@
 # DZ Ad Creatives
 
-Personal web tool that generates **tall, single-image e-commerce ad creatives** in the style of Algerian dropshipping ads — Arabic/Darija copy, full RTL layout, product photos, benefit icons, and a green "Cash on Delivery" badge. Products are stored in Supabase and rendered through one of three fixed 1080px-wide templates, then exported client-side as a downloadable WebP/JPG at 2× resolution. Single-user app: one hardcoded Supabase Auth account, no sign-up flow.
+Personal web tool that generates **tall, single-image e-commerce ad creatives** in the style of Algerian dropshipping ads — Arabic/Darija copy, full RTL layout, product photos, benefit icons, and a green "Cash on Delivery" badge. Products are stored in Supabase and rendered through one of **four 800px-wide landing-page templates** (up to 7000px tall — every section collapses when its data is empty, so pages shorten automatically), then exported client-side as a downloadable WebP/JPG at 2× resolution. Single-user app: one hardcoded Supabase Auth account, no sign-up flow.
 
 ## Tech stack
 
@@ -55,14 +55,20 @@ create table products (
   created_at timestamptz default now(),
   name text not null,
   price numeric,
-  template_id text not null default 'A', -- 'A' | 'B' | 'C'
+  old_price numeric, -- compare-at price (strikethrough in the price pill)
+  template_id text not null default 'A', -- 'A' | 'B' | 'C' | 'D'
   theme_id text not null default 'warm', -- see src/lib/themes.js
+  announcement text, -- top ribbon, e.g. "تخفيض 30% وتوصيل مجاني"
+  badge text, -- authority line, e.g. "الأكثر مبيعا في الجزائر"
   headline text,
   subheadline text,
   description text,
-  features jsonb, -- array of { icon: string, label: string, description: string }
-  closing_line text, -- short supporting line in the closing section
-  image_urls text[], -- array of Supabase Storage public URLs
+  features jsonb, -- array of { icon, label, description } (up to 6)
+  usage_steps text, -- how-to steps, one per line
+  specs jsonb, -- array of { label, value } (spec table)
+  reviews jsonb, -- array of { name, text } (testimonials)
+  closing_line text, -- bold closing headline above the CTA
+  image_urls text[], -- array of Supabase Storage public URLs (up to 10)
   updated_at timestamptz default now()
 );
 
@@ -109,9 +115,15 @@ create policy "Authenticated delete product-images"
   using (bucket_id = 'product-images');
 ```
 
-> **Existing database?** The `theme_id` column was added after the initial schema — run this once before pulling the themes update:
+> **Existing database?** Run whichever of these you're missing (all idempotent):
 > ```sql
 > alter table products add column if not exists theme_id text not null default 'warm';
+> alter table products add column if not exists old_price numeric;
+> alter table products add column if not exists announcement text;
+> alter table products add column if not exists badge text;
+> alter table products add column if not exists usage_steps text;
+> alter table products add column if not exists specs jsonb;
+> alter table products add column if not exists reviews jsonb;
 > ```
 
 **Bucket access model:** `product-images` is a **public-read** bucket (anyone with a URL can view images — required because exported ads and the templates load them directly); all writes/deletes require an authenticated session.
@@ -137,9 +149,9 @@ The three AI buttons (اقتراح النصوص، تحسين الصورة، اخ
 
 | Function | Does | Model (default) |
 |---|---|---|
-| `generate-copy` | Full ad copy in **Algerian Darija** (strict prompt, JSON schema, icons constrained to the app's 12 keys, `~strike~` supported) | `gemini-2.5-flash` |
+| `generate-copy` | Full ad copy in **Algerian Darija**: headline/sub/paragraphs, 4–6 features (icons constrained to the app's 12 keys), announcement ribbon, trust badge, usage steps, closing line. Reviews are deliberately NOT AI-generated. | `gemini-2.5-flash` |
 | `enhance-image` | Product photo cleanup: clutter removed, clean studio background, better lighting — product itself untouched | `gemini-2.5-flash-image` |
-| `select-template` | Picks `template_id` (A/B/C) **and** `theme_id`, optionally looking at the first product photo | `gemini-2.5-flash` |
+| `select-template` | Picks `template_id` (A/B/C/D) **and** `theme_id`, optionally looking at the first product photo | `gemini-2.5-flash` |
 
 ### One-time setup (~5 minutes)
 
@@ -169,13 +181,21 @@ The three AI buttons (اقتراح النصوص، تحسين الصورة، اخ
 - **`/login`** (`src/pages/Login.jsx`) — email + password via `supabase.auth.signInWithPassword`, inline error, redirect on success. Session state lives in `src/hooks/useSession.js` (initial `getSession` + `onAuthStateChange`); `/`, `/new`, `/edit/:id`, `/preview/:id` redirect to `/login` without a session.
 - **`/` dashboard** (`src/pages/Dashboard.jsx`) — fetches `id, name, price, template_id, image_urls, created_at` ordered newest-first; cards with first-image thumbnail, name, price (`ar-DZ` locale), created date, template badge; **edit** link; **two-step inline delete** (row first, then best-effort storage cleanup via `src/lib/storage.js`); empty state linking to `/new`.
 - **`/new` and `/edit/:productId`** (`src/pages/ProductForm.jsx`, one shared component) — fields: name*, price, template dropdown (A/B/C), headline*, subheadline, description, 3 feature rows (icon from the fixed 12-icon map in `src/lib/icons.js` + label + description), closing line; `ImageUploader` (1–4 images, local previews, native HTML5 drag reorder, first image = main, ≥1 required); inline validation, no alerts. Create: client-generated uuid → uploads to `product-images/{id}/{timestamp}-{n}.{ext}` → insert. Edit: prefills from the row, mixed existing-URL/new-File images, uploads only new files, removes dropped images from storage after a successful update. Failed saves clean up newly uploaded files.
-- **`/preview/:productId`** (`src/pages/Preview.jsx`) — fetches the row, renders `TemplateCanvas` (fixed 1080px RTL canvas, switches A/B/C by `template_id`, unknown values fall back to A) inside `ScaledPreview` (fit-to-width scaling, full-res DOM preserved). Export toolbar: WebP/JPG toggle → `html-to-image` `toCanvas` at `pixelRatio: 2` → `canvas.toBlob` → download named `{slug}-ad.{ext}` (slug keeps Arabic letters, falls back to short id). Loading + inline error states.
-- **Templates** (`src/components/templates/`) — modern reference-style ad design: full-bleed photos melting into a warm-white canvas via gradient washes, espresso display typography (Baloo Bhaijaan 2 headlines + Cairo body), red rotated strikethrough, tan rounded icon tiles joined by a dashed connector, floating rounded photos with soft shadows. Three structurally distinct layouts — **A** (reference look: centered text melting into a washed full-bleed hero, open feature rows with dashed connector + side close-up), **B** (editorial: white headline overlaid on the full-bleed photo over a dark gradient, full-width pill feature cards, variant thumb strip), **C** (split "sticker": start-aligned text beside a white-framed hero on a tilted accent block, dense 2-column spec card grid); shared closing (scalloped wax-seal COD badge, bold closing headline from `closing_line`, painted «اطلب الآن» CTA pill, floating photo collage). Graceful fallbacks throughout: empty descriptions render nothing, missing images collapse their slots, empty features hide the section. **Six selectable themes** (palette + Arabic font pairing: Cairo/Baloo Bhaijaan 2/Changa/Almarai/Noto Kufi/Rubik/El Messiri/Tajawal/Lalezar) via `products.theme_id`, injected as CSS variables on the canvas root.
+- **`/preview/:productId`** (`src/pages/Preview.jsx`) — fetches the row, renders `TemplateCanvas` (fixed 800px RTL canvas, hard-capped at 7000px, switches A/B/C/D by `template_id`) inside `ScaledPreview`. Toolbar: **template switcher and theme switcher (both persist to the row)**, live height chip (800 × Npx) with an amber warning when content exceeds the 7000px cap, WebP/JPG toggle → `html-to-image` `toCanvas` at `pixelRatio: 2` → download named `{slug}-ad.{ext}`. Loading + inline error states.
+- **Templates** (`src/components/templates/`) — four landing-page layouts modeled on real DZ dropshipping references, built from a shared section kit (`shared.jsx`: announcement bar, price pill with strikethrough old price, discount badge, pill/ribbon headings, icon grids and rows, bullet/numbered lists, photo bands/grids/collage with optional check overlays, numbered usage steps, key/value specs table, COD/delivery/warranty/support trust strip, star-rated testimonials, wax-seal + CTA closing block):
+  - **A — متجر أنيق**: dark hero, bestseller badge, price pill, bullets beside a photo, ink callout band (refs: smartwatch/ultrasonic ads)
+  - **B — قصة إقناع**: pain-question headline, big circle photo, colored answer, outline icon grid, alternating paragraph/photo story (refs: fuel saver/joint cream)
+  - **C — كتالوج فاخر**: ribbon headings, photo collage, inline icon row, alternating bands, specs table (refs: makeup bag/projector)
+  - **D — عرض ترويجي**: discount badge on the hero, early price + CTA, results grid with check overlays, numbered feature list, steps (refs: window cleaner/ginger spray)
+
+  Every section renders only when its data exists, so sparse products produce short pages. **Six selectable themes** (palette + Arabic font pairing) via `products.theme_id`, injected as CSS variables on the canvas root.
 
 ### Usage conventions (data-driven behavior)
 
 - **Strikethrough sub-word:** wrap a word in tildes in the headline — `وداعاً للفوضى ~وللغلاء~` — to get the strikethrough "before" effect. No tildes = plain headline.
-- **Image order matters:** image 1 = hero/lifestyle. A: image 2 = side close-up, images 3–4 = closing collage. B: images 2–3 = variant shots, image 4 = closing photo. C: images 2–3 = closing collage. Reorder by dragging in the form.
+- **Image order matters (up to 10):** image 1 is always the hero; the rest flow into each template's photo slots in order (bands, grids, collage). More images = a longer page. Reorder with the arrows (or drag on desktop).
+- **Description = paragraphs:** each line is a paragraph, placed between photo sections (story flow). 2–4 short paragraphs work best.
+- **`usage_steps`** renders as a numbered how-to list (one step per line); **`specs`** as a bordered key/value table; **`reviews`** as testimonial cards with a star row and initial avatars.
 - **`closing_line` renders as the bold closing headline** (e.g. «خزانتك تولي تبرق ومفرزة!»); the CTA pill text is fixed («اطلب الآن»).
 - **Themes:** six palette + font presets — `warm`, `night`, `mint`, `blush`, `ocean`, `poster` (defined in `src/lib/themes.js`) — picked in the form or switched live from the preview toolbar (persists to the row). Unknown ids fall back to `warm`.
 
@@ -187,10 +207,9 @@ The three AI buttons (اقتراح النصوص، تحسين الصورة، اخ
   - `selectTemplate(productInfo)` → resolves `{ template_id, theme_id }`; the form applies both
   - Until the functions are deployed and `GEMINI_API_KEY` is set, the buttons show a failure toast with the technical detail.
 
-### Stored but never rendered
+### Field coverage
 
-- **`products.description`** — captured and saved by the form, displayed nowhere (no template reads it). Reserved as raw input for `generateCopy`.
-- **`products.price`** — saved and shown on dashboard cards only; **not rendered inside any ad template** (the reference designs omit price).
+- Every field now renders somewhere: `description` becomes the story paragraphs, `price`/`old_price` feed the price pill and the derived discount badge, and `announcement`/`badge`/`usage_steps`/`specs`/`reviews` each have dedicated sections that vanish when empty.
 
 ## Known issues / needs testing
 
@@ -203,7 +222,7 @@ Built across separate prompts; the following is an honest audit:
 - **Image reordering:** arrow buttons on each thumbnail work everywhere (including touch); drag-and-drop additionally works on desktop only (native HTML5 drag events).
 - **Storage cleanup is best-effort.** Delete removes the DB row first, then files — a failed cleanup silently leaves orphan files in the bucket. Same pattern for failed saves.
 - **RLS is account-wide, not row-scoped.** Any authenticated user has full access; security rests on keeping Supabase sign-ups disabled.
-- **Template C caps at 3 spec callouts** (the design brief mentioned 3–4, but the form has exactly 3 feature rows). Template A's optional closing grid similarly maxes out at 2 photos (brief said 2–3) because of the 4-image cap.
+- **The 7000px cap hard-clips overflowing content** (`overflow: hidden` on the canvas). The preview shows an amber warning with the real content height when this happens — trim images/paragraphs until it clears.
 - **The AI path is untested end-to-end until a real `GEMINI_API_KEY` is set** — the Edge Functions and client wiring are code-complete but have never run against live Gemini. First test each button on a saved product and read the toast detail line if something fails. Model names are pinned to `gemini-2.5-flash` / `gemini-2.5-flash-image` defaults and can be overridden via secrets if Google renames them.
 - **`selectTemplate` sees image URLs only in edit mode** — on a fresh `/new`, files aren't uploaded yet, so it decides from text alone there. `enhance-image` payloads are limited by function/Gemini request caps (~20 MB); extremely large photos may fail.
 - **A production build without env vars "succeeds" silently** — `createClient(undefined)` then throws at runtime (blank page + console error). If a deployed site renders nothing, check the Vercel env vars before anything else.
@@ -247,11 +266,12 @@ Built across separate prompts; the following is an honest audit:
     │   ├── ImageUploader.jsx     1–4 images, previews, drag reorder, optional AI-enhance button
     │   ├── ScaledPreview.jsx     fit-to-width scaler (items-start is load-bearing — see comment)
     │   └── templates/
-    │       ├── TemplateCanvas.jsx  1080px RTL canvas, A/B/C switch, export ref target
-    │       ├── TemplateA.jsx       container/home item layout
-    │       ├── TemplateB.jsx       wearable/clothing layout
-    │       ├── TemplateC.jsx       small gadget/specs layout
-    │       └── shared.jsx          Headline (~strike~), IconCircle, CodBadge, ClosingSection
+    │       ├── TemplateCanvas.jsx  800px RTL canvas (7000px cap), A/B/C/D switch, export ref
+    │       ├── TemplateA.jsx       متجر أنيق — dark hero + price + bullets + testimonials
+    │       ├── TemplateB.jsx       قصة إقناع — pain question + circle photo + icon grid
+    │       ├── TemplateC.jsx       كتالوج فاخر — ribbons + collage + specs table
+    │       ├── TemplateD.jsx       عرض ترويجي — discount + numbered list + steps
+    │       └── shared.jsx          section kit (price pill, grids, steps, specs, trust, reviews…)
     └── pages/
         ├── Login.jsx             single-account sign-in
         ├── Dashboard.jsx         product cards, edit / two-step delete, empty state

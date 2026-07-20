@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 // Displays a fixed-width canvas scaled down to fit its container while the
 // DOM keeps full resolution (required for the later image export).
-export default function ScaledPreview({ width = 1080, children }) {
+export default function ScaledPreview({ width = 800, children }) {
   const outerRef = useRef(null)
   const innerRef = useRef(null)
   const [scale, setScale] = useState(1)

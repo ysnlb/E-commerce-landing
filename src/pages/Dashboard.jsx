@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { THEMES } from '../lib/themes'
 import { removeImagesByUrls } from '../lib/storage'
 
 export default function Dashboard() {
@@ -16,7 +17,7 @@ export default function Dashboard() {
     async function load() {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, price, template_id, image_urls, created_at')
+        .select('id, name, price, template_id, theme_id, image_urls, created_at')
         .order('created_at', { ascending: false })
       if (cancelled) return
       if (error) {
@@ -110,7 +111,7 @@ export default function Dashboard() {
                     {p.name}
                   </Link>
                   <span className="shrink-0 rounded bg-leather-600 px-2 py-0.5 text-xs font-bold text-white">
-                    قالب {p.template_id}
+                    {p.template_id} · {THEMES[p.theme_id]?.label ?? 'دافئ'}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-charcoal-500">
