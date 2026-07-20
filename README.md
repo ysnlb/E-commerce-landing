@@ -118,38 +118,7 @@ create policy "Users delete own files"
   using (bucket_id = 'product-images' and owner_id = auth.uid()::text);
 ```
 
-> **Existing database?** Run whichever of these you're missing (all idempotent):
-> ```sql
-> alter table products add column if not exists theme_id text not null default 'warm';
-> alter table products add column if not exists old_price numeric;
-> alter table products add column if not exists announcement text;
-> alter table products add column if not exists badge text;
-> alter table products add column if not exists usage_steps text;
-> alter table products add column if not exists specs jsonb;
-> alter table products add column if not exists reviews jsonb;
->
-> -- Multi-account isolation (assigns existing rows to the oldest account):
-> alter table products add column if not exists user_id uuid references auth.users (id) on delete cascade;
-> update products set user_id = (select id from auth.users order by created_at asc limit 1) where user_id is null;
-> alter table products alter column user_id set not null;
-> alter table products alter column user_id set default auth.uid();
-> create index if not exists products_user_id_idx on products (user_id);
-> drop policy if exists "Authenticated full access" on products;
-> create policy "Owner full access" on products for all to authenticated
->   using (user_id = auth.uid()) with check (user_id = auth.uid());
-> drop policy if exists "Authenticated read product-images" on storage.objects;
-> drop policy if exists "Authenticated upload product-images" on storage.objects;
-> drop policy if exists "Authenticated update product-images" on storage.objects;
-> drop policy if exists "Authenticated delete product-images" on storage.objects;
-> create policy "Users upload to own folder" on storage.objects for insert to authenticated
->   with check (bucket_id = 'product-images' and (storage.foldername(name))[1] = auth.uid()::text);
-> create policy "Users read own files" on storage.objects for select to authenticated
->   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
-> create policy "Users update own files" on storage.objects for update to authenticated
->   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
-> create policy "Users delete own files" on storage.objects for delete to authenticated
->   using (bucket_id = 'product-images' and (owner_id = auth.uid()::text or owner = auth.uid()));
-> ```
+> **Existing database?** Don't copy SQL out of this README — run [`supabase/migration.sql`](supabase/migration.sql) instead (open it raw, paste the whole file into the SQL editor, Run). It is cumulative and **idempotent** — safe to run more than once, covers every column and policy added since the initial schema, and assigns existing rows to the oldest account.
 
 **Bucket access model:** `product-images` is a **public-read** bucket (anyone with a URL can view images — required because exported ads and the templates load them directly); all writes/deletes require an authenticated session.
 
